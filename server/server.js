@@ -63,7 +63,12 @@ const io = require("socket.io")(server, {
 
 app.set("io", io);
 
+const { startExpirationJob, getRoomOnlineCount } = require("./utils/roomExpirationJob");
+startExpirationJob(io);
+
 const matchmakingController = require("./controllers/matchmakingController");
+
+const roomOnlineUsers = new Map();
 
 io.on("connection", (socket) => {
   console.log("Connected to socket.io");
@@ -80,13 +85,52 @@ io.on("connection", (socket) => {
     console.log("User Joined Room: " + room);
   });
 
-  socket.on("join room", (roomId) => {
+  socket.on("join room", async (roomId) => {
     socket.join(roomId);
     console.log("User Joined Anonymous Room: " + roomId);
+
+    const roomKey = roomId.toString();
+    const currentCount = roomOnlineUsers.get(roomKey) || 0;
+    roomOnlineUsers.set(roomKey, currentCount + 1);
+
+    const actualCount = await getRoomOnlineCount(roomId);
+    io.in(roomId).emit("room-participants-update", {
+      roomId,
+      participantCount: actualCount,
+    });
+  });
+
+  socket.on("leave room", async (roomId) => {
+    socket.leave(roomId);
+    console.log("User Left Anonymous Room: " + roomId);
+
+    const roomKey = roomId.toString();
+    const currentCount = roomOnlineUsers.get(roomKey) || 0;
+    roomOnlineUsers.set(roomKey, Math.max(0, currentCount - 1));
+
+    const actualCount = await getRoomOnlineCount(roomId);
+    io.in(roomId).emit("room-participants-update", {
+      roomId,
+      participantCount: actualCount,
+    });
   });
 
   socket.on("typing", (room) => socket.in(room).emit("typing"));
   socket.on("stop typing", (room) => socket.in(room).emit("stop typing"));
+
+  socket.on("typing-room", (roomId) => {
+    socket.to(roomId).emit("user-typing", {
+      roomId,
+      userId: socket.userId,
+    });
+  });
+
+  socket.on("stop-typing-room", (roomId) => {
+    socket.to(roomId).emit("user-stop-typing", {
+      roomId,
+      userId: socket.userId,
+    });
+  });
 
   socket.on("new message", (newMessageRecieved) => {
     var chat = newMessageRecieved.chat;

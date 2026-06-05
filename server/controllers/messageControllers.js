@@ -2,6 +2,7 @@ const asyncHandler = require("express-async-handler");
 const Message = require("../models/messageModel");
 const Chat = require("../models/chatModel");
 const RoomParticipant = require("../models/roomParticipantModel");
+const AnonymousRoom = require("../models/anonymousRoomModel");
 
 //@description     Get all Messages
 //@route           GET /api/Message/:chatId
@@ -43,6 +44,16 @@ const sendMessage = asyncHandler(async (req, res) => {
     if (!isParticipant) {
       res.status(403);
       throw new Error("Not a participant of this room");
+    }
+
+    const room = await AnonymousRoom.findById(roomId);
+    if (room && room.status === "inactive") {
+      res.status(400);
+      throw new Error("Room has expired");
+    }
+    if (room && room.expiresAt && new Date() > room.expiresAt) {
+      res.status(400);
+      throw new Error("Room has expired");
     }
   }
 

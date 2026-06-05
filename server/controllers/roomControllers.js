@@ -2,6 +2,8 @@ const asyncHandler = require("express-async-handler");
 const AnonymousRoom = require("../models/anonymousRoomModel");
 const RoomParticipant = require("../models/roomParticipantModel");
 const Message = require("../models/messageModel");
+const { calculateExpiration } = require("../utils/roomExpiration");
+const { getRoomOnlineCount } = require("../utils/roomExpirationJob");
 
 const createPublicRoom = asyncHandler(async (req, res) => {
   const { roomName, topic } = req.body;
@@ -12,6 +14,7 @@ const createPublicRoom = asyncHandler(async (req, res) => {
     status: "active",
     createdBy: req.user._id,
     topic,
+    expiresAt: calculateExpiration(),
   });
 
   await RoomParticipant.create({
@@ -32,7 +35,8 @@ const createPublicRoom = asyncHandler(async (req, res) => {
 const listPublicRooms = asyncHandler(async (req, res) => {
   const { limit = 50, offset = 0, search } = req.query;
 
-  const query = { roomType: "group", status: "active" };
+  const now = new Date();
+  const query = { roomType: "group", status: "active", expiresAt: { $gt: now } };
 
   if (search) {
     query.$or = [
@@ -51,6 +55,7 @@ const listPublicRooms = asyncHandler(async (req, res) => {
 
 const joinRoom = asyncHandler(async (req, res) => {
   const { roomId } = req.body;
+  const io = req.app.get("io");
 
   if (!roomId) {
     res.status(400);
@@ -67,6 +72,11 @@ const joinRoom = asyncHandler(async (req, res) => {
   if (room.status !== "active") {
     res.status(400);
     throw new Error("Room is not active");
+  }
+
+  if (room.expiresAt && new Date() > room.expiresAt) {
+    res.status(400);
+    throw new Error("Room has expired");
   }
 
   const existingParticipant = await RoomParticipant.findOne({
@@ -92,21 +102,32 @@ const joinRoom = asyncHandler(async (req, res) => {
     await prevParticipation.save();
   } else {
     await RoomParticipant.create({
-      room: roomId,
+      room: room._id,
       user: req.user._id,
       role: "member",
       isActive: true,
     });
   }
 
-  await AnonymousRoom.findByIdAndUpdate(roomId, { $inc: { participantCount: 1 } });
+  const actualCount = await getRoomOnlineCount(roomId);
+  if (io) {
+    io.in(roomId).emit("room-participants-update", {
+      roomId,
+      participantCount: actualCount,
+    });
+  }
 
-  const updatedRoom = await AnonymousRoom.findById(roomId);
+  const updatedRoom = await AnonymousRoom.findByIdAndUpdate(
+    roomId,
+    { $inc: { participantCount: 1 } },
+    { new: true }
+  );
   res.json(updatedRoom);
 });
 
 const leaveRoom = asyncHandler(async (req, res) => {
   const { roomId } = req.body;
+  const io = req.app.get("io");
 
   if (!roomId) {
     res.status(400);
@@ -127,6 +148,14 @@ const leaveRoom = asyncHandler(async (req, res) => {
   participant.isActive = false;
   participant.leftAt = new Date();
   await participant.save();
+
+  const actualCount = await getRoomOnlineCount(roomId);
+  if (io) {
+    io.in(roomId).emit("room-participants-update", {
+      roomId,
+      participantCount: actualCount,
+    });
+  }
 
   const updatedRoom = await AnonymousRoom.findByIdAndUpdate(
     roomId,
