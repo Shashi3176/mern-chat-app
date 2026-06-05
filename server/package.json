@@ -9,9 +9,14 @@
     "build": "npm install --legacy-peer-deps && npm install --legacy-peer-deps --prefix frontend && npm run build --prefix frontend",
     "seed:anonymous-names": "node scripts/seedAnonymousNames.js",
     "migrate:anonymous-rooms": "node scripts/setupAnonymousRoomIndices.js",
+    "cleanup:inactive-rooms": "node scripts/cleanupInactiveRooms.js",
     "test": "jest",
     "test:watch": "jest --watch",
     "lint": "node --check server.js"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testMatch": ["**/*.test.js"]
   },
   "keywords": [
     "mern",

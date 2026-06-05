@@ -1,10 +1,10 @@
 const AnonymousRoom = require("../models/anonymousRoomModel");
 const RoomParticipant = require("../models/roomParticipantModel");
-const Message = require("../models/messageModel");
+const config = require("../config/anonymousRoomConfig");
 
 const EXPIRATION_CHECK_INTERVAL = 60 * 1000;
 
-const WARNING_TIME_MS = 5 * 60 * 1000;
+const WARNING_TIME_MS = config.getRoomWarningMs();
 
 const closeExpiredRooms = async (io = null) => {
   try {
@@ -114,7 +114,7 @@ const startExpirationJob = (io) => {
   setInterval(() => closeExpiredRooms(io), EXPIRATION_CHECK_INTERVAL);
 };
 
-const STALE_QUEUE_THRESHOLD_MS = 5 * 60 * 1000;
+const STALE_QUEUE_THRESHOLD_MS = config.queue.staleThresholdMinutes * 60 * 1000;
 
 const cleanupStaleQueueEntries = (queue, userIdToSocketId, userActiveRooms) => {
   try {

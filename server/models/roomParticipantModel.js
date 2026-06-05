@@ -19,16 +19,18 @@ const roomParticipantSchema = mongoose.Schema(
       enum: ["member", "admin", "moderator"],
       default: "member",
     },
-    joinedAt: { type: Date, default: Date.now },
-    leftAt: { type: Date, default: null },
+    joinedAt: { type: Date, default: Date.now, index: true },
+    leftAt: { type: Date, default: null, index: true },
     isActive: { type: Boolean, default: true, index: true },
   },
   { timestamps: true }
 );
 
+// Indexes for common queries
 roomParticipantSchema.index({ room: 1, isActive: 1 });
 roomParticipantSchema.index({ user: 1, isActive: 1 });
 roomParticipantSchema.index({ room: 1, user: 1 }, { unique: true });
+roomParticipantSchema.index({ user: 1, isActive: 1, room: 1 });
 
 const RoomParticipant = mongoose.model("RoomParticipant", roomParticipantSchema);
 

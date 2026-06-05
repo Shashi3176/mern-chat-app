@@ -1,4 +1,6 @@
-const EXPIRATION_HOURS = 2;
+const { getRoomExpirationHours, getRoomWarningMs } = require("../config/anonymousRoomConfig");
+
+const EXPIRATION_HOURS = getRoomExpirationHours();
 
 const calculateExpiration = () => {
   return new Date(Date.now() + EXPIRATION_HOURS * 60 * 60 * 1000);
