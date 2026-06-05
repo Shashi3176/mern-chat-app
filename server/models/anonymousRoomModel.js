@@ -3,6 +3,7 @@ const mongoose = require("mongoose");
 const anonymousRoomSchema = mongoose.Schema(
   {
     roomName: { type: String, trim: true },
+    topic: { type: String, trim: true },
     roomType: {
       type: String,
       enum: ["group", "direct"],

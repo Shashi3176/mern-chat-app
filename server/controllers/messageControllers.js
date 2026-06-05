@@ -1,6 +1,7 @@
 const asyncHandler = require("express-async-handler");
 const Message = require("../models/messageModel");
 const Chat = require("../models/chatModel");
+const RoomParticipant = require("../models/roomParticipantModel");
 
 //@description     Get all Messages
 //@route           GET /api/Message/:chatId
@@ -21,26 +22,61 @@ const allMessages = asyncHandler(async (req, res) => {
 //@route           POST /api/Message/
 //@access          Protected
 const sendMessage = asyncHandler(async (req, res) => {
-  const { content, chatId } = req.body;
+  const { content, chatId, roomId } = req.body;
 
-  if (!content || !chatId) {
+  if (!content) {
     console.log("Invalid data passed into request");
     return res.sendStatus(400);
+  }
+
+  if (!chatId && !roomId) {
+    return res.status(400).json({ message: "chatId or roomId required" });
+  }
+
+  if (roomId && !chatId) {
+    const isParticipant = await RoomParticipant.findOne({
+      room: roomId,
+      user: req.user._id,
+      isActive: true,
+    });
+
+    if (!isParticipant) {
+      res.status(403);
+      throw new Error("Not a participant of this room");
+    }
   }
 
   var newMessage = {
     sender: req.user._id,
     content: content,
-    chat: chatId,
   };
+
+  if (chatId) {
+    newMessage.chat = chatId;
+  }
+  if (roomId) {
+    newMessage.room = roomId;
+  }
 
   try {
     var message = await Message.create(newMessage);
 
     message = await message.populate("sender", "_id").execPopulate();
-    message = await message.populate("chat", "_id").execPopulate();
 
-    await Chat.findByIdAndUpdate(req.body.chatId, { latestMessage: message });
+    if (chatId) {
+      message = await message.populate("chat", "_id").execPopulate();
+      await Chat.findByIdAndUpdate(chatId, { latestMessage: message });
+    }
+    if (roomId) {
+      message = await message.populate({
+        path: "room",
+        select: "_id roomName topic createdAt",
+      }).execPopulate();
+      message = await message.populate({
+        path: "sender",
+        populate: { path: "anonymousName", select: "name" },
+      }).execPopulate();
+    }
 
     res.json(message);
   } catch (error) {

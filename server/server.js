@@ -4,6 +4,7 @@ const dotenv = require("dotenv");
 const userRoutes = require("./routes/userRoutes");
 const chatRoutes = require("./routes/chatRoutes");
 const messageRoutes = require("./routes/messageRoutes");
+const roomRoutes = require("./routes/roomRoutes");
 const { notFound, errorHandler } = require("./middleware/errorMiddleware");
 const path = require("path");
 
@@ -20,6 +21,7 @@ app.use(express.json()); // to accept json data
 app.use("/api/user", userRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/message", messageRoutes);
+app.use("/api/rooms", roomRoutes);
 
 // --------------------------deployment------------------------------
 
@@ -69,19 +71,31 @@ io.on("connection", (socket) => {
     socket.join(room);
     console.log("User Joined Room: " + room);
   });
+
+  socket.on("join room", (roomId) => {
+    socket.join(roomId);
+    console.log("User Joined Anonymous Room: " + roomId);
+  });
+
   socket.on("typing", (room) => socket.in(room).emit("typing"));
   socket.on("stop typing", (room) => socket.in(room).emit("stop typing"));
 
   socket.on("new message", (newMessageRecieved) => {
     var chat = newMessageRecieved.chat;
 
-    if (!chat.users) return console.log("chat.users not defined");
+    if (chat && chat.users) {
+      chat.users.forEach((user) => {
+        if (user._id == newMessageRecieved.sender._id) return;
 
-    chat.users.forEach((user) => {
-      if (user._id == newMessageRecieved.sender._id) return;
+        socket.in(user._id).emit("message recieved", newMessageRecieved);
+      });
+    }
 
-      socket.in(user._id).emit("message recieved", newMessageRecieved);
-    });
+    var room = newMessageRecieved.room;
+
+    if (room && room._id) {
+      socket.in(room._id).emit("message recieved", newMessageRecieved);
+    }
   });
 
   socket.off("setup", () => {
