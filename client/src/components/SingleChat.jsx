@@ -5,26 +5,26 @@ import {
   Text,
   Spinner,
   useToast,
+  Badge,
+  HStack,
 } from "@chakra-ui/react";
 import "./styles.css";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import axios from "axios";
 import ScrollableChat from "./ScrollableChat";
-import io from "socket.io-client";
 import { ChatState } from "../Context/ChatProvider";
-
-const ENDPOINT = "http://localhost:5000";
-var socket, selectedChatCompare;
+import { RoomTimer, RoomParticipants } from "./miscellaneous/RoomComponents";
 
 const SingleChat = () => {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [newMessage, setNewMessage] = useState("");
+  const [typing, setTyping] = useState(false);
   const toast = useToast();
 
-  const { selectedChat, user } = ChatState();
+  const { selectedChat, user, socket, joinRoom, sendTyping, sendStopTyping } = ChatState();
 
-  const fetchMessages = async () => {
+  const fetchMessages = useCallback(async () => {
     if (!selectedChat) return;
 
     try {
@@ -36,14 +36,16 @@ const SingleChat = () => {
 
       setLoading(true);
 
-      const { data } = await axios.get(
-        `/api/message/${selectedChat._id}`,
-        config
-      );
+      let endpoint = `/api/message/${selectedChat._id}`;
+      if (selectedChat.roomType === "group" || selectedChat.roomType === "direct") {
+        endpoint = `/api/rooms/${selectedChat._id}/messages`;
+      }
+
+      const { data } = await axios.get(endpoint, config);
       setMessages(data);
       setLoading(false);
 
-      socket.emit("join chat", selectedChat._id);
+      joinRoom(selectedChat._id);
     } catch (error) {
       toast({
         title: "Error Occured!",
@@ -54,11 +56,11 @@ const SingleChat = () => {
         position: "bottom",
       });
     }
-  };
+  }, [selectedChat, user?.token, joinRoom, toast]);
 
   const sendMessage = async (event) => {
     if (event.key === "Enter" && newMessage) {
-      socket.emit("stop typing", selectedChat._id);
+      sendStopTyping(selectedChat._id);
       try {
         const config = {
           headers: {
@@ -67,14 +69,15 @@ const SingleChat = () => {
           },
         };
         setNewMessage("");
-        const { data } = await axios.post(
-          "/api/message",
-          {
-            content: newMessage,
-            chatId: selectedChat,
-          },
-          config
-        );
+        const payload = { content: newMessage };
+
+        if (selectedChat.roomType === "group" || selectedChat.roomType === "direct") {
+          payload.roomId = selectedChat._id;
+        } else {
+          payload.chatId = selectedChat._id;
+        }
+
+        const { data } = await axios.post("/api/message", payload, config);
         socket.emit("new message", data);
         setMessages([...messages, data]);
       } catch (error) {
@@ -91,47 +94,64 @@ const SingleChat = () => {
   };
 
   useEffect(() => {
-    socket = io(ENDPOINT);
-    socket.emit("setup", user);
-    socket.on("connected", () => {});
-    // eslint-disable-next-line
-  }, []);
+    if (!socket || !user) return;
+
+    socket.on("message recieved", (newMessageRecieved) => {
+      setMessages((prev) => [...prev, newMessageRecieved]);
+    });
+
+    socket.on("user-typing", (data) => {
+      if (data.roomId === selectedChat?._id) {
+        setTyping(true);
+        setTimeout(() => setTyping(false), 3000);
+      }
+    });
+
+    return () => {
+      socket.off("message recieved");
+      socket.off("user-typing");
+    };
+  }, [socket, selectedChat?._id]);
 
   useEffect(() => {
     fetchMessages();
-
-    selectedChatCompare = selectedChat;
-    // eslint-disable-next-line
-  }, [selectedChat]);
-
-  useEffect(() => {
-    socket.on("message recieved", (newMessageRecieved) => {
-      if (
-        !selectedChatCompare ||
-        selectedChatCompare._id !== newMessageRecieved.chat._id
-      ) {
-        setMessages([...messages, newMessageRecieved]);
-      }
-    });
-  });
+  }, [fetchMessages]);
 
   const typingHandler = (e) => {
     setNewMessage(e.target.value);
+    if (!typing) {
+      sendTyping(selectedChat._id);
+    }
+  };
+
+  const getRoomDisplayName = () => {
+    if (selectedChat?.roomName) return selectedChat.roomName;
+    if (selectedChat?.roomType === "direct") return "Random Chat";
+    return "Group Chat";
   };
 
   return (
     <>
       {selectedChat ? (
         <>
-          <Text
-            fontSize={{ base: "28px", md: "30px" }}
-            pb={3}
-            px={2}
-            w="100%"
-            fontFamily="Work sans"
-          >
-            Room: {selectedChat._id}
-          </Text>
+          <HStack justify="space-between" w="100%">
+            <Text
+              fontSize={{ base: "20px", md: "24px" }}
+              pb={3}
+              px={2}
+              fontFamily="Work sans"
+            >
+              {getRoomDisplayName()}
+            </Text>
+            {selectedChat?.expiresAt && <RoomTimer room={selectedChat} />}
+          </HStack>
+
+          {typing && (
+            <Text fontSize="sm" color="gray.500" ml={2}>
+              Someone is typing...
+            </Text>
+          )}
+
           <Box
             d="flex"
             flexDir="column"
@@ -155,6 +175,10 @@ const SingleChat = () => {
               <div className="messages">
                 <ScrollableChat messages={messages} />
               </div>
+            )}
+
+            {selectedChat?.roomType === "group" && (
+              <RoomParticipants roomId={selectedChat._id} />
             )}
 
             <FormControl
