@@ -7,6 +7,7 @@ const messageRoutes = require("./routes/messageRoutes");
 const roomRoutes = require("./routes/roomRoutes");
 const matchmakingRoutes = require("./routes/matchmakingRoutes");
 const { notFound, errorHandler } = require("./middleware/errorMiddleware");
+const { closeExpiredRooms, getRoomOnlineCount } = require("./utils/roomExpirationJob");
 const path = require("path");
 
 dotenv.config();
@@ -15,10 +16,7 @@ const app = express();
 
 app.use(express.json()); // to accept json data
 
-// app.get("/", (req, res) => {
-//   res.send("API Running!");
-// });
-
+// Mount routes - rate limiting via existing protect middleware
 app.use("/api/user", userRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/message", messageRoutes);
@@ -61,12 +59,21 @@ const io = require("socket.io")(server, {
   },
 });
 
+module.exports = io;
 app.set("io", io);
 
-const { startExpirationJob, getRoomOnlineCount } = require("./utils/roomExpirationJob");
+const startExpirationJob = (io) => {
+  closeExpiredRooms(io);
+  setInterval(() => closeExpiredRooms(io), 60000);
+};
+
 startExpirationJob(io);
 
-const matchmakingController = require("./controllers/matchmakingController");
+const {
+  registerSocket,
+  unregisterSocket,
+  handleSocketDisconnect,
+} = require("./controllers/matchmakingController");
 
 const roomOnlineUsers = new Map();
 
@@ -76,7 +83,7 @@ io.on("connection", (socket) => {
   socket.on("setup", (userData) => {
     socket.join(userData._id);
     socket.userId = userData._id;
-    matchmakingController.registerSocket(socket.id, userData._id);
+    registerSocket(socket.id, userData._id);
     socket.emit("connected");
   });
 
@@ -148,8 +155,8 @@ io.on("connection", (socket) => {
     }
   });
 
-  socket.on("disconnect", () => {
-    console.log("USER DISCONNECTED");
-    matchmakingController.unregisterSocket(socket.id, socket.userId);
+  socket.on("disconnect", (reason) => {
+    console.log("USER DISCONNECTED:", reason);
+    handleSocketDisconnect(io, socket);
   });
 });

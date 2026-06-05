@@ -2,11 +2,16 @@ const asyncHandler = require("express-async-handler");
 const AnonymousRoom = require("../models/anonymousRoomModel");
 const RoomParticipant = require("../models/roomParticipantModel");
 const Message = require("../models/messageModel");
-const { calculateExpiration } = require("../utils/roomExpiration");
+const { calculateExpiration, isExpired } = require("../utils/roomExpiration");
 const { getRoomOnlineCount } = require("../utils/roomExpirationJob");
 
 const createPublicRoom = asyncHandler(async (req, res) => {
-  const { roomName, topic } = req.body;
+  const { roomName, topic, maxParticipants } = req.body;
+
+  if (maxParticipants && (maxParticipants < 2 || maxParticipants > 100)) {
+    res.status(400);
+    throw new Error("Max participants must be between 2 and 100");
+  }
 
   const room = await AnonymousRoom.create({
     roomName: roomName || undefined,
@@ -14,6 +19,7 @@ const createPublicRoom = asyncHandler(async (req, res) => {
     status: "active",
     createdBy: req.user._id,
     topic,
+    maxParticipants: maxParticipants || 50,
     expiresAt: calculateExpiration(),
   });
 
@@ -29,7 +35,10 @@ const createPublicRoom = asyncHandler(async (req, res) => {
   const populatedRoom = await AnonymousRoom.findById(room._id)
     .populate("createdBy", "_id");
 
-  res.status(201).json(populatedRoom);
+  res.status(201).json({
+    ...populatedRoom.toObject(),
+    participantCount: 1,
+  });
 });
 
 const listPublicRooms = asyncHandler(async (req, res) => {
@@ -50,16 +59,32 @@ const listPublicRooms = asyncHandler(async (req, res) => {
     .skip(parseInt(offset))
     .limit(parseInt(limit));
 
-  res.json(rooms);
+  const roomsWithOnlineCount = await Promise.all(
+    rooms.map(async (room) => {
+      const onlineCount = await getRoomOnlineCount(room._id);
+      return {
+        ...room.toObject(),
+        onlineCount,
+      };
+    })
+  );
+
+  res.json(roomsWithOnlineCount);
 });
 
 const joinRoom = asyncHandler(async (req, res) => {
   const { roomId } = req.body;
   const io = req.app.get("io");
+  const userId = req.user._id;
 
   if (!roomId) {
     res.status(400);
     throw new Error("Room ID is required");
+  }
+
+  if (!/^[0-9a-fA-F]{24}$/.test(roomId)) {
+    res.status(400);
+    throw new Error("Invalid room ID format");
   }
 
   const room = await AnonymousRoom.findById(roomId);
@@ -70,28 +95,37 @@ const joinRoom = asyncHandler(async (req, res) => {
   }
 
   if (room.status !== "active") {
-    res.status(400);
-    throw new Error("Room is not active");
+    res.status(410);
+    throw new Error("Room is no longer active");
   }
 
-  if (room.expiresAt && new Date() > room.expiresAt) {
-    res.status(400);
+  if (isExpired(room.expiresAt)) {
+    res.status(410);
     throw new Error("Room has expired");
+  }
+
+  if (room.participantCount >= room.maxParticipants) {
+    res.status(403);
+    throw new Error("Room is at maximum capacity");
   }
 
   const existingParticipant = await RoomParticipant.findOne({
     room: roomId,
-    user: req.user._id,
+    user: userId,
     isActive: true,
   });
 
   if (existingParticipant) {
-    return res.json({ message: "Already joined this room", room });
+    return res.status(200).json({ 
+      message: "Already joined this room", 
+      room,
+      participantCount: room.participantCount 
+    });
   }
 
   const prevParticipation = await RoomParticipant.findOne({
     room: roomId,
-    user: req.user._id,
+    user: userId,
     isActive: false,
   });
 
@@ -103,17 +137,9 @@ const joinRoom = asyncHandler(async (req, res) => {
   } else {
     await RoomParticipant.create({
       room: room._id,
-      user: req.user._id,
+      user: userId,
       role: "member",
       isActive: true,
-    });
-  }
-
-  const actualCount = await getRoomOnlineCount(roomId);
-  if (io) {
-    io.in(roomId).emit("room-participants-update", {
-      roomId,
-      participantCount: actualCount,
     });
   }
 
@@ -122,27 +148,41 @@ const joinRoom = asyncHandler(async (req, res) => {
     { $inc: { participantCount: 1 } },
     { new: true }
   );
-  res.json(updatedRoom);
+
+  if (io) {
+    io.in(roomId).emit("room-participants-update", {
+      roomId,
+      participantCount: updatedRoom.participantCount,
+    });
+  }
+
+  res.status(200).json(updatedRoom);
 });
 
 const leaveRoom = asyncHandler(async (req, res) => {
   const { roomId } = req.body;
   const io = req.app.get("io");
+  const userId = req.user._id;
 
   if (!roomId) {
     res.status(400);
     throw new Error("Room ID is required");
   }
 
+  if (!/^[0-9a-fA-F]{24}$/.test(roomId)) {
+    res.status(400);
+    throw new Error("Invalid room ID format");
+  }
+
   const participant = await RoomParticipant.findOne({
     room: roomId,
-    user: req.user._id,
+    user: userId,
     isActive: true,
   });
 
   if (!participant) {
     res.status(404);
-    throw new Error("Not a participant of this room");
+    throw new Error("You are not a participant of this room");
   }
 
   participant.isActive = false;
@@ -150,24 +190,57 @@ const leaveRoom = asyncHandler(async (req, res) => {
   await participant.save();
 
   const actualCount = await getRoomOnlineCount(roomId);
-  if (io) {
-    io.in(roomId).emit("room-participants-update", {
-      roomId,
-      participantCount: actualCount,
-    });
-  }
-
+  
   const updatedRoom = await AnonymousRoom.findByIdAndUpdate(
     roomId,
     { $inc: { participantCount: -1 } },
     { new: true }
   );
 
-  res.json(updatedRoom);
+  if (io && actualCount === 0) {
+    await AnonymousRoom.findByIdAndUpdate(roomId, {
+      status: "inactive",
+      participantCount: 0,
+    });
+
+    const roomParticipants = await RoomParticipant.find({
+      room: roomId,
+    }).populate("user", "_id");
+
+    for (const p of roomParticipants) {
+      if (p.user && p.user._id) {
+        io.to(p.user._id.toString()).emit("room-expired", {
+          roomId: roomId.toString(),
+          message: "Chat room has expired due to inactivity",
+        });
+      }
+    }
+  } else if (io) {
+    io.in(roomId).emit("room-participants-update", {
+      roomId,
+      participantCount: actualCount,
+    });
+  }
+
+  res.status(200).json({
+    message: "Left room successfully",
+    room: updatedRoom,
+  });
 });
 
 const getRoomParticipants = asyncHandler(async (req, res) => {
   const { roomId } = req.params;
+
+  if (!/^[0-9a-fA-F]{24}$/.test(roomId)) {
+    res.status(400);
+    throw new Error("Invalid room ID format");
+  }
+
+  const room = await AnonymousRoom.findById(roomId);
+  if (!room) {
+    res.status(404);
+    throw new Error("Room not found");
+  }
 
   const participants = await RoomParticipant.find({
     room: roomId,
@@ -177,22 +250,47 @@ const getRoomParticipants = asyncHandler(async (req, res) => {
       path: "user",
       populate: { path: "anonymousName", select: "name" },
     })
-    .select("user role joinedAt");
+    .select("user role joinedAt")
+    .sort({ joinedAt: 1 });
 
   res.json(participants);
 });
 
 const getRoomMessages = asyncHandler(async (req, res) => {
   const { roomId } = req.params;
+  const { limit = 100, before } = req.query;
 
-  const messages = await Message.find({ room: roomId })
+  if (!/^[0-9a-fA-F]{24}$/.test(roomId)) {
+    res.status(400);
+    throw new Error("Invalid room ID format");
+  }
+
+  const room = await AnonymousRoom.findById(roomId);
+  if (!room) {
+    res.status(404);
+    throw new Error("Room not found");
+  }
+
+  if (isExpired(room.expiresAt)) {
+    res.status(410);
+    throw new Error("Room has expired");
+  }
+
+  let query = { room: roomId };
+  
+  if (before) {
+    query.createdAt = { $lt: new Date(before) };
+  }
+
+  const messages = await Message.find(query)
     .populate({
       path: "sender",
       populate: { path: "anonymousName", select: "name" },
     })
-    .sort({ createdAt: -1 });
+    .sort({ createdAt: -1 })
+    .limit(parseInt(limit));
 
-  res.json(messages);
+  res.json(messages.reverse());
 });
 
 module.exports = {
