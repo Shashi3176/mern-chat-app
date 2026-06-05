@@ -7,7 +7,8 @@
     "start": "node server.js",
     "server": "nodemon server.js",
     "build": "npm install --legacy-peer-deps && npm install --legacy-peer-deps --prefix frontend && npm run build --prefix frontend",
-    "seed:anonymous-names": "node scripts/seedAnonymousNames.js"
+    "seed:anonymous-names": "node scripts/seedAnonymousNames.js",
+    "migrate:anonymous-rooms": "node scripts/setupAnonymousRoomIndices.js"
   },
   "keywords": [
     "mern",
