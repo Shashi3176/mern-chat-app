@@ -1,5 +1,8 @@
 const asyncHandler = require("express-async-handler");
 const Chat = require("../models/chatModel");
+const RoomParticipant = require("../models/roomParticipantModel");
+const AnonymousRoom = require("../models/anonymousRoomModel");
+const Message = require("../models/messageModel");
 
 //@description     Create or fetch One to One Chat
 //@route           POST /api/chat/
@@ -184,6 +187,107 @@ const addToGroup = asyncHandler(async (req, res) => {
   }
 });
 
+//@description Fetch user's active rooms with last message info and unread count
+//@route GET /api/chat/my-chats
+//@access Protected
+const getMyActiveRooms = asyncHandler(async (req, res) => {
+  const userId = req.user._id;
+
+  const [chatResults, roomResults] = await Promise.all([
+    Chat.find({ users: { $elemMatch: { $eq: userId } } })
+      .populate("users", "_id")
+      .populate("groupAdmin", "_id")
+      .populate("latestMessage")
+      .sort({ updatedAt: -1 }),
+    RoomParticipant.find({ user: userId, isActive: true })
+      .populate({
+        path: "room",
+        match: { status: "active", expiresAt: { $gt: new Date() } },
+      }),
+  ]);
+
+  const populatedChats = await Promise.all(
+    chatResults.map(async (chat) => {
+      const unread = await Message.findOne({
+        chat: chat._id,
+        readBy: { $ne: userId },
+      }).exists();
+      return {
+        _id: chat._id,
+        isGroupChat: true,
+        chatName: chat.chatName,
+        users: chat.users,
+        latestMessage: chat.latestMessage,
+        lastMessageTime: chat.updatedAt,
+        unreadCount: unread ? 1 : 0,
+        isAnonymousRoom: false,
+      };
+    })
+  );
+
+  const populatedRooms = await Promise.all(
+    roomResults
+      .filter((r) => r.room)
+      .map(async (participation) => {
+        const room = participation.room;
+        const latestMessage = await Message.findOne({ room: room._id }).sort({ createdAt: -1 });
+        const unread = await Message.findOne({
+          room: room._id,
+          readBy: { $ne: userId },
+        }).exists();
+        return {
+          _id: room._id,
+          isGroupChat: false,
+          chatName: room.roomName || "Random Chat",
+          roomType: room.roomType,
+          users: [{ _id: userId }],
+          latestMessage,
+          lastMessageTime: latestMessage ? latestMessage.createdAt : room.updatedAt,
+          unreadCount: unread ? 1 : 0,
+          isAnonymousRoom: true,
+        };
+      })
+  );
+
+  const combined = [...populatedChats, ...populatedRooms];
+  combined.sort((a, b) => {
+    const timeA = new Date(a.lastMessageTime || a.updatedAt || 0);
+    const timeB = new Date(b.lastMessageTime || b.updatedAt || 0);
+    return timeB - timeA;
+  });
+
+  res.json(combined);
+});
+
+const markRoomAsRead = asyncHandler(async (req, res) => {
+  const { roomId } = req.params;
+  const userId = req.user._id;
+
+  if (/^[0-9a-fA-F]{24}$/.test(roomId)) {
+    const chat = await Chat.findById(roomId);
+    if (chat && chat.users.some((u) => u._id.toString() === userId.toString())) {
+      const result = await Message.updateMany(
+        { chat: roomId, readBy: { $ne: userId } },
+        { $addToSet: { readBy: userId } }
+      );
+      return res.json({ success: true, modifiedCount: result.modifiedCount });
+    }
+  }
+
+  const participant = await RoomParticipant.findOne({ room: roomId, user: userId, isActive: true });
+  if (!participant) {
+    res.status(404);
+    throw new Error("Room not found or you are not a participant");
+  }
+
+  const result = await Message.updateMany(
+    { room: roomId, readBy: { $ne: userId } },
+    { $addToSet: { readBy: userId } }
+  );
+
+  res.json({ success: true, modifiedCount: result.modifiedCount });
+});
+
 module.exports = {
   accessChat,
   fetchChats,
@@ -191,4 +295,6 @@ module.exports = {
   renameGroup,
   addToGroup,
   removeFromGroup,
+  getMyActiveRooms,
+  markRoomAsRead,
 };

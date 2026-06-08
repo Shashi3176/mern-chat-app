@@ -1,3 +1,6 @@
+const dotenv = require("dotenv");
+dotenv.config();
+
 const mongoose = require("mongoose");
 const colors = require("colors");
 const AnonymousName = require("../models/anonymousNameModel");

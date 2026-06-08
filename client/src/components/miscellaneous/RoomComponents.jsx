@@ -1,7 +1,7 @@
 import { Box, Text, VStack, HStack, Badge, useToast } from "@chakra-ui/react";
 import { useEffect, useState, useCallback } from "react";
 import axios from "axios";
-import { ChatState } from "../Context/ChatProvider";
+import { ChatState } from "../../Context/ChatProvider";
 
 const RoomTimer = ({ room }) => {
   const [timeLeft, setTimeLeft] = useState("");

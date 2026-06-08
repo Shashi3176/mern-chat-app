@@ -10,6 +10,8 @@ const ChatProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
   const [onlineUsers, setOnlineUsers] = useState({});
   const [notifications, setNotifications] = useState([]);
+  const [myRooms, setMyRooms] = useState([]);
+  const [loadingRooms, setLoadingRooms] = useState(false);
 
   const history = useHistory();
 
@@ -81,6 +83,22 @@ const ChatProvider = ({ children }) => {
 
     newSocket.on("message recieved", (newMessageRecieved) => {
       setNotifications((prev) => [...prev, { type: "message", ...newMessageRecieved }]);
+
+      setMyRooms((prevRooms) => {
+        const updatedRooms = [...prevRooms];
+        const roomId = newMessageRecieved.chat || newMessageRecieved.room;
+        const roomIndex = updatedRooms.findIndex((r) => r._id === roomId);
+
+        if (roomIndex >= 0) {
+          const room = { ...updatedRooms[roomIndex] };
+          room.latestMessage = newMessageRecieved;
+          room.lastMessageTime = newMessageRecieved.createdAt || new Date();
+          room.unreadCount = newMessageRecieved.sender._id !== user._id ? room.unreadCount + 1 : 0;
+          updatedRooms.splice(roomIndex, 1);
+          updatedRooms.unshift(room);
+        }
+        return updatedRooms;
+      });
     });
 
     newSocket.on("disconnect", () => {
@@ -111,6 +129,45 @@ const ChatProvider = ({ children }) => {
       }
     } catch (error) {
       console.error("Fallback fetch failed:", error);
+    }
+  };
+
+  const fetchActiveRooms = async () => {
+    if (!user) return;
+    setLoadingRooms(true);
+    try {
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
+      const response = await fetch(`${backendUrl}/api/chat/my-chats`, {
+        headers: {
+          Authorization: `Bearer ${user.token}`,
+        },
+      });
+      if (response.ok) {
+        const rooms = await response.json();
+        setMyRooms(rooms);
+      }
+    } catch (error) {
+      console.error("Failed to fetch active rooms:", error);
+    } finally {
+      setLoadingRooms(false);
+    }
+  };
+
+  const markRoomAsRead = async (roomId) => {
+    if (!user) return;
+    try {
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
+      await fetch(`${backendUrl}/api/chat/${roomId}/read`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${user.token}`,
+        },
+      });
+      setMyRooms((prev) =>
+        prev.map((room) => (room._id === roomId ? { ...room, unreadCount: 0 } : room))
+      );
+    } catch (error) {
+      console.error("Failed to mark room as read:", error);
     }
   };
 
@@ -161,6 +218,10 @@ const ChatProvider = ({ children }) => {
         onlineUsers,
         notifications,
         setNotifications,
+        myRooms,
+        loadingRooms,
+        fetchActiveRooms,
+        markRoomAsRead,
         joinRoom,
         leaveRoom,
         sendTyping,

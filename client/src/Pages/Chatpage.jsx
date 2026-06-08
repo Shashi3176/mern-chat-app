@@ -1,15 +1,11 @@
 import { Box } from "@chakra-ui/react";
-import Chatbox from "../components/Chatbox";
-import SideDrawer from "../components/miscellaneous/SideDrawer";
+import ChatContainer from "../components/ChatContainer.jsx";
 
 const Chatpage = () => {
   return (
-    <div style={{ width: "100%" }}>
-      <SideDrawer />
-      <Box d="flex" justifyContent="center" w="100%" h="91.5vh" p="10px">
-        <Chatbox />
-      </Box>
-    </div>
+    <Box w="100%">
+      <ChatContainer />
+    </Box>
   );
 };
 

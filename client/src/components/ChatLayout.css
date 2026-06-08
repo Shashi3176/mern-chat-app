@@ -1,0 +1,22 @@
+.chat-container {
+  display: flex;
+  height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
+}
+
+@media (max-width: 768px) {
+  .mobile-sidebar {
+    width: 100%;
+    max-width: 100%;
+    position: fixed;
+    z-index: 10;
+    height: 100vh;
+  }
+
+  .mobile-main {
+    width: 100%;
+    position: fixed;
+    z-index: 5;
+  }
+}

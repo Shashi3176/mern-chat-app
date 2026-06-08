@@ -40,13 +40,8 @@ const config = {
   },
 };
 
-const getRoomExpirationHours = () => config.room.expirationHours;
-const getRoomWarningMs = () => config.room.warningMinutes * 60 * 1000;
-const getMaxParticipants = () => config.room.maxParticipants;
+config.getRoomExpirationHours = () => config.room.expirationHours;
+config.getRoomWarningMs = () => config.room.warningMinutes * 60 * 1000;
+config.getMaxParticipants = () => config.room.maxParticipants;
 
-module.exports = {
-  config,
-  getRoomExpirationHours,
-  getRoomWarningMs,
-  getMaxParticipants,
-};
+module.exports = config;

@@ -12,6 +12,7 @@ import {
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { ChatState } from "../../Context/ChatProvider";
+import { useChatNavigation } from "../../Context/ChatNavigationContext";
 import { RepeatIcon } from "@chakra-ui/icons";
 
 const RandomChat = () => {
@@ -20,7 +21,8 @@ const RandomChat = () => {
   const [activeRoomId, setActiveRoomId] = useState(null);
   const [countdown, setCountdown] = useState(null);
   const toast = useToast();
-  const { user, joinRoom, setSelectedChat, socket } = ChatState();
+  const { user, joinRoom, setSelectedChat, socket, fetchActiveRooms } = ChatState();
+  const { setActiveSection } = useChatNavigation();
 
   const fetchStatus = async () => {
     try {
@@ -105,6 +107,8 @@ const RandomChat = () => {
         joinRoom(data.roomId);
         const roomData = await axios.get(`/api/rooms/${data.roomId}/my-room`, config);
         setSelectedChat(roomData.data);
+        fetchActiveRooms();
+        setActiveSection("myChats");
         setActiveRoomId(data.roomId);
         setStatus("matched");
       } else {
