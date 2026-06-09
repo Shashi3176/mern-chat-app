@@ -4,9 +4,17 @@ const ChatNavigationContext = createContext();
 
 export const ChatNavigationProvider = ({ children }) => {
   const [activeSection, setActiveSection] = useState("myChats");
+  const [isTabletSidebarOpen, setIsTabletSidebarOpen] = useState(true);
 
   return (
-    <ChatNavigationContext.Provider value={{ activeSection, setActiveSection }}>
+    <ChatNavigationContext.Provider
+      value={{
+        activeSection,
+        setActiveSection,
+        isTabletSidebarOpen,
+        setIsTabletSidebarOpen,
+      }}
+    >
       {children}
     </ChatNavigationContext.Provider>
   );

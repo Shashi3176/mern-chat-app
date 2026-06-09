@@ -3,20 +3,394 @@
   height: 100vh;
   max-height: 100vh;
   overflow: hidden;
+  position: relative;
 }
 
-@media (max-width: 768px) {
-  .mobile-sidebar {
-    width: 100%;
-    max-width: 100%;
-    position: fixed;
-    z-index: 10;
-    height: 100vh;
+/* ===== SLIDE TRANSITIONS ===== */
+.chat-sidebar-panel,
+.chat-main-panel {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 0.3s ease;
+  will-change: transform;
+}
+
+/* Slide in from left */
+.slide-in-left {
+  animation: slideInLeft 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes slideInLeft {
+  from { transform: translateX(-100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+/* Slide in from right */
+.slide-in-right {
+  animation: slideInRight 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+/* Slide out to left */
+.slide-out-left {
+  animation: slideOutLeft 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes slideOutLeft {
+  from { transform: translateX(0); opacity: 1; }
+  to { transform: translateX(-100%); opacity: 0; }
+}
+
+/* Slide out to right */
+.slide-out-right {
+  animation: slideOutRight 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes slideOutRight {
+  from { transform: translateX(0); opacity: 1; }
+  to { transform: translateX(100%); opacity: 0; }
+}
+
+/* Fade transition */
+.fade-in {
+  animation: fadeIn 0.25s ease forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ===== TABLET: 768px - 1024px ===== */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .chat-container {
+    display: flex;
   }
 
-  .mobile-main {
-    width: 100%;
-    position: fixed;
+  .chat-sidebar-panel {
+    width: 40%;
+    max-width: 380px;
+    min-width: 280px;
+    height: 100vh;
+    flex-shrink: 0;
+    position: relative;
     z-index: 5;
+    transition: width 0.3s ease, transform 0.3s ease, max-width 0.3s ease;
+  }
+
+  .chat-sidebar-panel.collapsed {
+    width: 0;
+    max-width: 0;
+    overflow: hidden;
+    border-right: none;
+  }
+
+  .chat-main-panel {
+    flex: 1;
+    width: 60%;
+    height: 100vh;
+    position: relative;
+    z-index: 1;
+  }
+
+  .tablet-hamburger-btn {
+    display: flex !important;
+  }
+
+  .tablet-sidebar-backdrop {
+    display: none;
+  }
+}
+
+/* ===== MOBILE: < 768px ===== */
+@media (max-width: 767px) {
+  .chat-container {
+    display: block;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .chat-sidebar-panel {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100vh;
+    height: 100dvh;
+    z-index: 20;
+    background: white;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: transform;
+  }
+
+  .chat-sidebar-panel.hidden-mobile {
+    transform: translateX(-100%);
+    pointer-events: none;
+  }
+
+  .chat-sidebar-panel.visible-mobile {
+    transform: translateX(0);
+    pointer-events: auto;
+  }
+
+  .chat-main-panel {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100vh;
+    height: 100dvh;
+    z-index: 10;
+    background: #f0f2f5;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: transform;
+  }
+
+  .chat-main-panel.hidden-mobile {
+    transform: translateX(100%);
+    pointer-events: none;
+  }
+
+  .chat-main-panel.visible-mobile {
+    transform: translateX(0);
+    pointer-events: auto;
+  }
+
+  /* Bottom tab bar for mobile navigation */
+  .mobile-bottom-tab-bar {
+    display: flex !important;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 30;
+    background: white;
+    border-top: 1px solid #e5e7eb;
+    padding: 6px 8px;
+    padding-bottom: max(6px, env(safe-area-inset-bottom));
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.06);
+  }
+
+  .mobile-tab-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 4px;
+    min-height: 48px;
+    border: none;
+    background: transparent;
+    color: #667085;
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: color 0.15s ease, background 0.15s ease;
+    border-radius: 12px;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    gap: 3px;
+  }
+
+  .mobile-tab-item:active {
+    background: rgba(0, 0, 0, 0.04);
+  }
+
+  .mobile-tab-item.active {
+    color: #2563eb;
+    background: rgba(37, 99, 235, 0.06);
+  }
+
+  .mobile-tab-icon {
+    font-size: 22px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+  }
+
+  /* Hamburger menu button (tablet only, hidden on mobile) */
+  .tablet-hamburger-btn {
+    display: none !important;
+  }
+
+  /* Swipe gesture area */
+  .swipe-edge-left {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 20px;
+    height: 100vh;
+    height: 100dvh;
+    z-index: 25;
+  }
+
+  /* Pull to refresh indicator */
+  .pull-to-refresh-indicator {
+    position: absolute;
+    top: -50px;
+    left: 50%;
+    transform: translateX(-50%);
+    transition: top 0.2s ease;
+    z-index: 5;
+    color: #667085;
+    font-size: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .pull-to-refresh-indicator.visible {
+    top: 10px;
+  }
+
+  /* Swipe to delete */
+  .swipe-delete-overlay {
+    position: absolute;
+    top: 0;
+    right: 0;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    background: #ef4444;
+    color: white;
+    padding: 0 20px;
+    font-size: 13px;
+    font-weight: 600;
+    z-index: 2;
+  }
+}
+
+/* ===== DESKTOP: > 1024px ===== */
+@media (min-width: 1025px) {
+  .chat-container {
+    display: flex;
+  }
+
+  .chat-sidebar-panel {
+    width: 32%;
+    max-width: 420px;
+    min-width: 320px;
+    height: 100vh;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 5;
+    border-right: 1px solid #e5e7eb;
+  }
+
+  .chat-main-panel {
+    flex: 1;
+    height: 100vh;
+    position: relative;
+    z-index: 1;
+  }
+
+  .mobile-bottom-tab-bar {
+    display: none !important;
+  }
+
+  .tablet-hamburger-btn {
+    display: none !important;
+  }
+
+  .swipe-edge-left {
+    display: none;
+  }
+}
+
+/* ===== LARGE DESKTOP: > 1400px ===== */
+@media (min-width: 1400px) {
+  .chat-sidebar-panel {
+    max-width: 480px;
+    min-width: 380px;
+  }
+}
+
+/* ===== TOUCH OPTIMIZATIONS (all touch devices) ===== */
+@media (hover: none) and (pointer: coarse) {
+  .chat-header-action-btn,
+  .message-input,
+  .send-button,
+  .mobile-tab-item,
+  .chat-list-item {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  .chat-list-item {
+    padding: 12px 16px;
+  }
+
+  .message-input {
+    font-size: 16px;
+    padding: 12px 18px;
+  }
+
+  .send-button {
+    width: 48px;
+    height: 48px;
+  }
+
+  .empty-state-button {
+    min-height: 48px;
+    padding: 12px 24px;
+  }
+}
+
+/* ===== SAFE AREA SUPPORT ===== */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .mobile-bottom-tab-bar {
+    padding-bottom: calc(6px + env(safe-area-inset-bottom));
+  }
+
+  .chat-sidebar-panel,
+  .chat-main-panel {
+    height: 100vh;
+    height: 100dvh;
+  }
+}
+
+/* ===== HIGH CONTRAST / REDUCED MOTION ===== */
+@media (prefers-reduced-motion: reduce) {
+  .chat-sidebar-panel,
+  .chat-main-panel {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* ===== OVERLAY / BACKDROP FOR TABLET SIDEBAR ===== */
+.tablet-sidebar-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 4;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+@media (min-width: 768px) and (max-width: 1024px) {
+  .tablet-sidebar-backdrop.visible {
+    display: block;
+    opacity: 1;
+  }
+}
+
+/* ===== SCROLLBAR HIDE FOR MOBILE SIDEBAR ===== */
+@media (max-width: 767px) {
+  .chat-sidebar-scroll::-webkit-scrollbar {
+    width: 0;
+    display: none;
+  }
+  .chat-sidebar-scroll {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
   }
 }

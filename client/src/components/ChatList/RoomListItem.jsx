@@ -1,8 +1,11 @@
 import { memo } from "react";
 import { HStack, VStack, Box, Badge, Text, Icon } from "@chakra-ui/react";
 import { ChatIcon } from "@chakra-ui/icons";
+import { ChatState } from "../../Context/ChatProvider";
 
 const RoomListItemInner = ({ room, onJoinRoom }) => {
+  const { typingUsers } = ChatState();
+  const isTyping = !!typingUsers[room._id];
   const formatCreationTime = (createdAt) => {
     if (!createdAt) return "";
     const date = new Date(createdAt);
@@ -65,12 +68,14 @@ const RoomListItemInner = ({ room, onJoinRoom }) => {
           <HStack justify="space-between" align="center" w="100%">
             <Text
               fontSize="xs"
-              color="gray.500"
+              color={isTyping ? "blue.500" : "gray.500"}
+              fontWeight={isTyping ? "medium" : "normal"}
+              fontStyle={isTyping ? "italic" : "normal"}
               noOfLines={1}
               flex={1}
               lineHeight="tight"
             >
-              {room.topic || "No topic"}
+              {isTyping ? "typing..." : (room.topic || "No topic")}
             </Text>
             <Badge colorScheme="green" fontSize="xs" minWidth="20px" textAlign="center">
               {room.participantCount || 0} online

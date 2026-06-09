@@ -4,7 +4,7 @@ import { ChatState } from "../../Context/ChatProvider";
 import { useChatItemHelpers } from "./useChatItemHelpers";
 import ChatListItem from "./ChatListItem";
 
-const ChatList = ({ onChatSelect }) => {
+const ChatList = ({ onChatSelect, renderItem }) => {
   const { myRooms, loadingRooms, fetchActiveRooms, selectedChat, setSelectedChat, markRoomAsRead } = ChatState();
   const { formatTime } = useChatItemHelpers();
 
@@ -49,11 +49,13 @@ const ChatList = ({ onChatSelect }) => {
     <Box className="chat-list-container" role="list">
       {myRooms.map((chat, index) => (
         <Box key={chat._id} role="listitem" mt={index === 0 ? 0 : 0}>
-          <ChatListItem
-            chat={chat}
-            isActive={selectedChat?._id === chat._id}
-            onClick={() => handleChatClick(chat)}
-          />
+          {renderItem ? renderItem(chat, handleChatClick) : (
+            <ChatListItem
+              chat={chat}
+              isActive={selectedChat?._id === chat._id}
+              onClick={() => handleChatClick(chat)}
+            />
+          )}
         </Box>
       ))}
     </Box>

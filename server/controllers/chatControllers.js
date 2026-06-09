@@ -208,10 +208,10 @@ const getMyActiveRooms = asyncHandler(async (req, res) => {
 
   const populatedChats = await Promise.all(
     chatResults.map(async (chat) => {
-      const unread = await Message.findOne({
+      const unreadCount = await Message.countDocuments({
         chat: chat._id,
         readBy: { $ne: userId },
-      }).exists();
+      });
       return {
         _id: chat._id,
         isGroupChat: true,
@@ -219,7 +219,7 @@ const getMyActiveRooms = asyncHandler(async (req, res) => {
         users: chat.users,
         latestMessage: chat.latestMessage,
         lastMessageTime: chat.updatedAt,
-        unreadCount: unread ? 1 : 0,
+        unreadCount,
         isAnonymousRoom: false,
       };
     })
@@ -231,10 +231,10 @@ const getMyActiveRooms = asyncHandler(async (req, res) => {
       .map(async (participation) => {
         const room = participation.room;
         const latestMessage = await Message.findOne({ room: room._id }).sort({ createdAt: -1 });
-        const unread = await Message.findOne({
+        const unreadCount = await Message.countDocuments({
           room: room._id,
           readBy: { $ne: userId },
-        }).exists();
+        });
         return {
           _id: room._id,
           isGroupChat: false,
@@ -243,7 +243,7 @@ const getMyActiveRooms = asyncHandler(async (req, res) => {
           users: [{ _id: userId }],
           latestMessage,
           lastMessageTime: latestMessage ? latestMessage.createdAt : room.updatedAt,
-          unreadCount: unread ? 1 : 0,
+          unreadCount,
           isAnonymousRoom: true,
         };
       })

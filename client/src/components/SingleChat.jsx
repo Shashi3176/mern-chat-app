@@ -1,31 +1,109 @@
-import {
-  FormControl,
-  Input,
-  Box,
-  Text,
-  Spinner,
-  useToast,
-  Badge,
-  HStack,
-} from "@chakra-ui/react";
-import "./styles.css";
-import { useEffect, useState, useCallback } from "react";
+import { Box, Spinner, Text, useToast, VStack } from "@chakra-ui/react";
 import axios from "axios";
-import ScrollableChat from "./ScrollableChat";
+import { useEffect, useRef, useState } from "react";
 import { ChatState } from "../Context/ChatProvider";
-import { RoomTimer, RoomParticipants } from "./miscellaneous/RoomComponents";
+import { useChatNavigation } from "../Context/ChatNavigationContext";
+import ChatHeader from "./ChatHeader";
+import EmptyState from "./EmptyState";
+import MessageInput from "./MessageInput";
+import MessagesContainer from "./MessagesContainer";
+
+const isRoomExpired = (room) => {
+  if (!room) return true;
+  if (room.status && room.status !== "active") return true;
+  if (room.expiresAt) return new Date(room.expiresAt).getTime() <= Date.now();
+  return false;
+};
 
 const SingleChat = () => {
   const [messages, setMessages] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [newMessage, setNewMessage] = useState("");
-  const [typing, setTyping] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [isRoomExpired, setIsRoomExpired] = useState(false);
+  const typingTimeoutRef = useRef(null);
   const toast = useToast();
 
-  const { selectedChat, user, socket, joinRoom, sendTyping, sendStopTyping } = ChatState();
+  const {
+    selectedChat,
+    setSelectedChat,
+    user,
+    socket,
+    typingUsers,
+    joinRoom,
+    sendTyping,
+    sendStopTyping,
+    leaveRoom,
+    markRoomAsRead,
+  } = ChatState();
+  const { setActiveSection } = useChatNavigation();
 
-  const fetchMessages = useCallback(async () => {
-    if (!selectedChat) return;
+  useEffect(() => {
+    if (!selectedChat) {
+      setIsRoomExpired(false);
+      return;
+    }
+
+    const updateRoomExpiredState = () => {
+      setIsRoomExpired(isRoomExpired(selectedChat));
+    };
+
+    updateRoomExpiredState();
+    const timer = setInterval(updateRoomExpiredState, 1000);
+
+    return () => clearInterval(timer);
+  }, [selectedChat?._id, selectedChat?.expiresAt, selectedChat?.status]);
+
+  useEffect(() => {
+    if (!selectedChat) {
+      setMessages([]);
+      setLoading(false);
+      return;
+    }
+
+    const loadMessages = async () => {
+      setLoading(true);
+      const fetchedMessages = await fetchMessages();
+      setMessages(fetchedMessages);
+      setLoading(false);
+      joinRoom(selectedChat._id);
+      if (selectedChat.unreadCount > 0) {
+        await markRoomAsRead(selectedChat._id);
+      }
+    };
+
+    loadMessages();
+  }, [selectedChat?._id, joinRoom, markRoomAsRead]);
+
+  useEffect(() => {
+    if (!socket || !user || !selectedChat) return;
+
+    const handleMessageReceived = (newMessageRecieved) => {
+      const roomId =
+        newMessageRecieved.room?._id ||
+        newMessageRecieved.room ||
+        newMessageRecieved.chat?._id ||
+        newMessageRecieved.chat ||
+        newMessageRecieved.roomId ||
+        newMessageRecieved.chatId;
+
+      if (roomId !== selectedChat._id) return;
+
+      setMessages((prev) => {
+        const exists = prev.some((message) => message._id === newMessageRecieved._id);
+        if (exists) return prev;
+        return [...prev, newMessageRecieved];
+      });
+    };
+
+    socket.on("message recieved", handleMessageReceived);
+
+    return () => {
+      socket.off("message recieved", handleMessageReceived);
+    };
+  }, [socket, selectedChat?._id, user]);
+
+  const fetchMessages = async () => {
+    if (!selectedChat) return [];
 
     try {
       const config = {
@@ -34,18 +112,13 @@ const SingleChat = () => {
         },
       };
 
-      setLoading(true);
-
       let endpoint = `/api/message/${selectedChat._id}`;
       if (selectedChat.roomType === "group" || selectedChat.roomType === "direct") {
         endpoint = `/api/rooms/${selectedChat._id}/messages`;
       }
 
       const { data } = await axios.get(endpoint, config);
-      setMessages(data);
-      setLoading(false);
-
-      joinRoom(selectedChat._id);
+      return Array.isArray(data) ? data : [];
     } catch (error) {
       toast({
         title: "Error Occured!",
@@ -55,156 +128,137 @@ const SingleChat = () => {
         isClosable: true,
         position: "bottom",
       });
+      return [];
     }
-  }, [selectedChat, user?.token, joinRoom, toast]);
+  };
 
-  const sendMessage = async (event) => {
-    if (event.key === "Enter" && newMessage) {
-      sendStopTyping(selectedChat._id);
-      try {
-        const config = {
-          headers: {
-            "Content-type": "application/json",
-            Authorization: `Bearer ${user.token}`,
-          },
-        };
-        setNewMessage("");
-        const payload = { content: newMessage };
+  const sendMessage = async () => {
+    if (!newMessage.trim() || !selectedChat || isRoomExpired) return;
 
-        if (selectedChat.roomType === "group" || selectedChat.roomType === "direct") {
-          payload.roomId = selectedChat._id;
-        } else {
-          payload.chatId = selectedChat._id;
-        }
+    sendStopTyping(selectedChat._id);
 
-        const { data } = await axios.post("/api/message", payload, config);
+    try {
+      const config = {
+        headers: {
+          "Content-type": "application/json",
+          Authorization: `Bearer ${user.token}`,
+        },
+      };
+      const payload = { content: newMessage };
+
+      if (selectedChat.roomType === "group" || selectedChat.roomType === "direct") {
+        payload.roomId = selectedChat._id;
+      } else {
+        payload.chatId = selectedChat._id;
+      }
+
+      const { data } = await axios.post("/api/message", payload, config);
+      if (socket) {
         socket.emit("new message", data);
-        setMessages([...messages, data]);
-      } catch (error) {
-        toast({
-          title: "Error Occured!",
-          description: "Failed to send the Message",
-          status: "error",
-          duration: 5000,
-          isClosable: true,
-          position: "bottom",
-        });
       }
+      setNewMessage("");
+    } catch (error) {
+      toast({
+        title: "Error Occured!",
+        description: "Failed to send the Message",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+        position: "bottom",
+      });
     }
   };
 
-  useEffect(() => {
-    if (!socket || !user) return;
+  const handleFindNewChat = async () => {
+    if (!selectedChat?._id || isRoomExpired) return;
 
-    socket.on("message recieved", (newMessageRecieved) => {
-      setMessages((prev) => [...prev, newMessageRecieved]);
-    });
+    try {
+      await leaveRoom(selectedChat._id);
 
-    socket.on("user-typing", (data) => {
-      if (data.roomId === selectedChat?._id) {
-        setTyping(true);
-        setTimeout(() => setTyping(false), 3000);
-      }
-    });
+      const config = {
+        headers: {
+          "Content-type": "application/json",
+          Authorization: `Bearer ${user.token}`,
+        },
+      };
 
-    return () => {
-      socket.off("message recieved");
-      socket.off("user-typing");
-    };
-  }, [socket, selectedChat?._id]);
-
-  useEffect(() => {
-    fetchMessages();
-  }, [fetchMessages]);
-
-  const typingHandler = (e) => {
-    setNewMessage(e.target.value);
-    if (!typing) {
-      sendTyping(selectedChat._id);
+      await axios.post("/api/matchmaking/random-chat", {}, config);
+      setMessages([]);
+      setNewMessage("");
+      setSelectedChat(null);
+      setActiveSection("randomChat");
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to leave chat or start new search",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
     }
   };
 
-  const getRoomDisplayName = () => {
-    if (selectedChat?.roomName) return selectedChat.roomName;
-    if (selectedChat?.roomType === "direct") return "Random Chat";
-    return "Group Chat";
+  const sendTypingWithDebounce = () => {
+    if (isRoomExpired || !selectedChat?._id) return;
+    sendTyping(selectedChat._id);
   };
+
+  const typingHandler = (event) => {
+    if (isRoomExpired) return;
+    setNewMessage(event.target.value);
+    sendTypingWithDebounce();
+  };
+
+  const handleBrowseRooms = () => {
+    setActiveSection("browseRooms");
+  };
+
+  const handleRandomChat = () => {
+    setActiveSection("randomChat");
+  };
+
+  if (!selectedChat) {
+    return (
+      <EmptyState
+        onBrowseRooms={handleBrowseRooms}
+        onRandomChat={handleRandomChat}
+      />
+    );
+  }
+
+  const currentChatTyping = !!typingUsers[selectedChat._id];
+
+  if (currentChatTyping && typingTimeoutRef.current) {
+    clearTimeout(typingTimeoutRef.current);
+  }
 
   return (
-    <>
-      {selectedChat ? (
-        <>
-          <HStack justify="space-between" w="100%">
-            <Text
-              fontSize={{ base: "20px", md: "24px" }}
-              pb={3}
-              px={2}
-              fontFamily="Work sans"
-            >
-              {getRoomDisplayName()}
-            </Text>
-            {selectedChat?.expiresAt && <RoomTimer room={selectedChat} />}
-          </HStack>
+    <VStack className="single-chat" h="100%" w="100%" spacing={0}>
+      <ChatHeader onFindNewChat={handleFindNewChat} />
 
-          {typing && (
-            <Text fontSize="sm" color="gray.500" ml={2}>
-              Someone is typing...
-            </Text>
-          )}
-
-          <Box
-            d="flex"
-            flexDir="column"
-            justifyContent="flex-end"
-            p={3}
-            bg="#E8E8E8"
-            w="100%"
-            h="100%"
-            borderRadius="lg"
-            overflowY="hidden"
-          >
-            {loading ? (
-              <Spinner
-                size="xl"
-                w={20}
-                h={20}
-                alignSelf="center"
-                margin="auto"
-              />
-            ) : (
-              <div className="messages">
-                <ScrollableChat messages={messages} />
-              </div>
-            )}
-
-            {selectedChat?.roomType === "group" && (
-              <RoomParticipants roomId={selectedChat._id} />
-            )}
-
-            <FormControl
-              onKeyDown={sendMessage}
-              id="first-name"
-              isRequired
-              mt={3}
-            >
-              <Input
-                variant="filled"
-                bg="#E0E0E0"
-                placeholder="Enter a message.."
-                value={newMessage}
-                onChange={typingHandler}
-              />
-            </FormControl>
+      <Box className="single-chat-body">
+        {loading ? (
+          <Box className="messages-loading">
+            <Spinner size="xl" />
+            <Text color="gray.500">Loading messages</Text>
           </Box>
-        </>
-      ) : (
-        <Box d="flex" alignItems="center" justifyContent="center" h="100%">
-          <Text fontSize="3xl" pb={3} fontFamily="Work sans">
-            Select a chat to start messaging
-          </Text>
-        </Box>
-      )}
-    </>
+        ) : (
+          <MessagesContainer messages={messages} roomType={selectedChat.roomType} />
+        )}
+      </Box>
+
+      <Box className="message-input-shell">
+        <MessageInput
+          value={newMessage}
+          onChange={typingHandler}
+          onSend={sendMessage}
+          isDisabled={loading || !selectedChat}
+          isExpired={isRoomExpired}
+          isTyping={currentChatTyping}
+          placeholder="Type a message..."
+        />
+      </Box>
+    </VStack>
   );
 };
 

@@ -1,4 +1,4 @@
-import { useState, createContext, useContext, useEffect, useCallback } from "react";
+import { useState, createContext, useContext, useEffect, useCallback, useRef } from "react";
 import { useHistory } from "react-router-dom";
 import { io } from "socket.io-client";
 
@@ -9,9 +9,12 @@ const ChatProvider = ({ children }) => {
   const [user, setUser] = useState();
   const [socket, setSocket] = useState(null);
   const [onlineUsers, setOnlineUsers] = useState({});
+  const [typingUsers, setTypingUsers] = useState({});
   const [notifications, setNotifications] = useState([]);
   const [myRooms, setMyRooms] = useState([]);
   const [loadingRooms, setLoadingRooms] = useState(false);
+  const [connectedUsers, setConnectedUsers] = useState({});
+  const typingTimeoutsRef = useRef({});
 
   const history = useHistory();
 
@@ -43,27 +46,34 @@ const ChatProvider = ({ children }) => {
 
     newSocket.on("connect_error", (err) => {
       console.error("Socket connection error:", err);
-      fetchNotificationsFallback(parsedUser._id);
     });
 
     newSocket.on("connected", () => {
       console.log("Socket setup complete");
     });
 
+    newSocket.on("user-status", (data) => {
+      setConnectedUsers((prev) => ({
+        ...prev,
+        [data.userId]: data.isOnline,
+      }));
+    });
+
     newSocket.on("random-chat-matched", (data) => {
-      setNotifications((prev) => [...prev, { type: "match", ...data }]);
+      setNotifications((prev) => [...prev, { id: Date.now() + Math.random(), type: "match", ...data }]);
     });
 
     newSocket.on("random-chat-partner-left", (data) => {
-      setNotifications((prev) => [...prev, { type: "partner-left", ...data }]);
+      setNotifications((prev) => [...prev, { id: Date.now() + Math.random(), type: "partner-left", ...data }]);
     });
 
     newSocket.on("room-expiration-warning", (data) => {
-      setNotifications((prev) => [...prev, { type: "expiration-warning", ...data }]);
+      setNotifications((prev) => [...prev, { id: Date.now() + Math.random(), type: "expiration-warning", ...data }]);
     });
 
     newSocket.on("room-expired", (data) => {
-      setNotifications((prev) => [...prev, { type: "room-expired", ...data }]);
+      setNotifications((prev) => [...prev, { id: Date.now() + Math.random(), type: "room-expired", ...data }]);
+      setMyRooms((prev) => prev.filter((room) => room._id !== data.roomId));
     });
 
     newSocket.on("room-participants-update", (data) => {
@@ -73,16 +83,35 @@ const ChatProvider = ({ children }) => {
       }));
     });
 
-    newSocket.on("user-typing", (data) => {
-      setNotifications((prev) => [...prev, { type: "typing", ...data }]);
+    newSocket.on("user-stop-typing", (data) => {
+      setTypingUsers((prev) => {
+        if (typingTimeoutsRef.current[data.roomId]) {
+          clearTimeout(typingTimeoutsRef.current[data.roomId]);
+          delete typingTimeoutsRef.current[data.roomId];
+        }
+        return { ...prev, [data.roomId]: false };
+      });
     });
 
-    newSocket.on("user-stop-typing", (data) => {
-      setNotifications((prev) => [...prev, { type: "stop-typing", ...data }]);
+    newSocket.on("user-typing", (data) => {
+      setTypingUsers((prev) => {
+        const next = { ...prev, [data.roomId]: true };
+        if (typingTimeoutsRef.current[data.roomId]) {
+          clearTimeout(typingTimeoutsRef.current[data.roomId]);
+        }
+        typingTimeoutsRef.current[data.roomId] = setTimeout(() => {
+          setTypingUsers((prev2) => ({
+            ...prev2,
+            [data.roomId]: false,
+          }));
+          delete typingTimeoutsRef.current[data.roomId];
+        }, 3000);
+        return next;
+      });
     });
 
     newSocket.on("message recieved", (newMessageRecieved) => {
-      setNotifications((prev) => [...prev, { type: "message", ...newMessageRecieved }]);
+      setNotifications((prev) => [...prev, { id: Date.now() + Math.random(), type: "message", ...newMessageRecieved }]);
 
       setMyRooms((prevRooms) => {
         const updatedRooms = [...prevRooms];
@@ -93,9 +122,20 @@ const ChatProvider = ({ children }) => {
           const room = { ...updatedRooms[roomIndex] };
           room.latestMessage = newMessageRecieved;
           room.lastMessageTime = newMessageRecieved.createdAt || new Date();
-          room.unreadCount = newMessageRecieved.sender._id !== user._id ? room.unreadCount + 1 : 0;
+          room.unreadCount = newMessageRecieved.sender._id !== user._id ? (room.unreadCount || 0) + 1 : 0;
           updatedRooms.splice(roomIndex, 1);
           updatedRooms.unshift(room);
+        } else {
+          updatedRooms.unshift({
+            _id: roomId,
+            chatName: newMessageRecieved.room?.roomName || newMessageRecieved.chat?.chatName || "Direct Chat",
+            isGroupChat: false,
+            roomType: newMessageRecieved.room?.roomType,
+            isAnonymousRoom: !!newMessageRecieved.room,
+            latestMessage: newMessageRecieved,
+            lastMessageTime: newMessageRecieved.createdAt || new Date(),
+            unreadCount: 1,
+          });
         }
         return updatedRooms;
       });
@@ -109,28 +149,9 @@ const ChatProvider = ({ children }) => {
       if (newSocket) {
         newSocket.disconnect();
       }
+      Object.values(typingTimeoutsRef.current).forEach((id) => clearTimeout(id));
     };
-  }, [history]);
-
-  const fetchNotificationsFallback = async (userId) => {
-    try {
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
-      const response = await fetch(`${backendUrl}/api/rooms/${userId}/my-rooms`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
-      if (response.ok) {
-        const rooms = await response.json();
-        const expired = rooms.filter(
-          (room) => !room.status || room.expiresAt < new Date().toISOString()
-        );
-        setNotifications((prev) => [...prev, ...expired.map((r) => ({ type: "room-expired", roomId: r._id }))]);
-      }
-    } catch (error) {
-      console.error("Fallback fetch failed:", error);
-    }
-  };
+  }, [history, user]);
 
   const fetchActiveRooms = async () => {
     if (!user) return;
@@ -207,6 +228,8 @@ const ChatProvider = ({ children }) => {
     [socket]
   );
 
+  const clearNotifications = useCallback(() => setNotifications([]), []);
+
   return (
     <ChatContext.Provider
       value={{
@@ -216,8 +239,10 @@ const ChatProvider = ({ children }) => {
         setUser,
         socket,
         onlineUsers,
+        typingUsers,
         notifications,
         setNotifications,
+        clearNotifications,
         myRooms,
         loadingRooms,
         fetchActiveRooms,

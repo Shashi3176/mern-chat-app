@@ -76,6 +76,7 @@ const {
 } = require("./controllers/matchmakingController");
 
 const roomOnlineUsers = new Map();
+const userConnectedSockets = new Map();
 
 io.on("connection", (socket) => {
   console.log("Connected to socket.io");
@@ -84,6 +85,13 @@ io.on("connection", (socket) => {
     socket.join(userData._id);
     socket.userId = userData._id;
     registerSocket(socket.id, userData._id);
+
+    const userSockets = userConnectedSockets.get(userData._id.toString()) || new Set();
+    userSockets.add(socket.id);
+    userConnectedSockets.set(userData._id.toString(), userSockets);
+
+    io.emit("user-status", { userId: userData._id, isOnline: true });
+
     socket.emit("connected");
   });
 
@@ -156,7 +164,30 @@ io.on("connection", (socket) => {
   });
 
   socket.on("disconnect", (reason) => {
-    console.log("USER DISCONNECTED:", reason);
+    console.log("USER DISCONNECTED:", reason, "socket:", socket.id);
     handleSocketDisconnect(io, socket);
+
+    if (socket.userId) {
+      const userSockets = userConnectedSockets.get(socket.userId.toString());
+      if (userSockets) {
+        userSockets.delete(socket.id);
+        if (userSockets.size === 0) {
+          userConnectedSockets.delete(socket.userId.toString());
+          io.emit("user-status", { userId: socket.userId, isOnline: false });
+        }
+      }
+    }
+  });
+
+  socket.on("error", (err) => {
+    console.error("Socket error:", err);
   });
 });
+
+setInterval(() => {
+  for (const [key, value] of roomOnlineUsers.entries()) {
+    if (value === 0) {
+      roomOnlineUsers.delete(key);
+    }
+  }
+}, 120000);

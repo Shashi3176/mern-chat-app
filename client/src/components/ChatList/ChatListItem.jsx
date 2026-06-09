@@ -1,20 +1,23 @@
 import { memo } from "react";
 import { HStack, VStack, Box, Badge, Text } from "@chakra-ui/react";
-import { ChatState } from "../../../Context/ChatProvider";
+import { ChatState } from "../../Context/ChatProvider";
 import { useChatItemHelpers } from "./useChatItemHelpers";
 
 const ChatListItemInner = ({ chat, isActive, onChatSelect }) => {
-  const { user } = ChatState();
+  const { user, typingUsers } = ChatState();
   const helpers = useChatItemHelpers();
 
   const displayName = chat.chatName || (!chat.isGroupChat && "Random Chat");
   const isDirect = !chat.isGroupChat;
   const isUnread = (chat.unreadCount || 0) > 0;
+  const isTyping = !!typingUsers[chat._id];
 
-  const lastMessageText = helpers.truncate(
-    chat.latestMessage?.content || chat.latestMessage,
-    40
-  );
+  const lastMessageText = isTyping
+    ? "typing..."
+    : helpers.truncate(
+        chat.latestMessage?.content || chat.latestMessage,
+        40
+      );
 
   return (
     <Box
@@ -30,6 +33,12 @@ const ChatListItemInner = ({ chat, isActive, onChatSelect }) => {
       role="button"
       tabIndex={0}
       onKeyDown={(e) => e.key === "Enter" && onChatSelect()}
+      minH="64px"
+      className="chat-list-item"
+      sx={{
+        touchAction: "manipulation",
+        WebkitTapHighlightColor: "transparent",
+      }}
     >
       <HStack spacing={3} align="flex-start">
         <Box position="relative" flexShrink={0}>
@@ -79,11 +88,12 @@ const ChatListItemInner = ({ chat, isActive, onChatSelect }) => {
           <HStack justify="space-between" align="center" w="100%">
             <Text
               fontSize="xs"
-              color={isUnread ? "gray.700" : "gray.500"}
-              fontWeight={isUnread ? "medium" : "normal"}
+              color={isTyping ? "blue.500" : isUnread ? "gray.700" : "gray.500"}
+              fontWeight={isTyping ? "medium" : isUnread ? "medium" : "normal"}
               noOfLines={1}
               flex={1}
               lineHeight="tight"
+              fontStyle={isTyping ? "italic" : "normal"}
             >
               {lastMessageText}
             </Text>
