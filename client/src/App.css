@@ -1,11 +1,77 @@
 @import url("https://fonts.googleapis.com/css2?family=Work+Sans:wght@300&display=swap");
 
+[data-theme="dark"] {
+  --wa-bg-primary: #111b21;
+  --wa-bg-secondary: #0d1418;
+  --wa-bg-surface: #1f2c35;
+  --wa-bg-sidebar: #111b21;
+  --wa-bg-chat: #0b141a;
+  --wa-bg-message-in: #202c33;
+  --wa-bg-message-out: #005c4b;
+  --wa-bg-message-out-selected: #073a2f;
+  --wa-bg-header: #1f2c35;
+  --wa-bg-input: #2a3942;
+  --wa-bg-hover: #202c33;
+  --wa-bg-banner: #f59e0b;
+  --wa-bg-banner-text: #78350f;
+
+  --wa-text-primary: #e9edef;
+  --wa-text-secondary: #8696a0;
+  --wa-text-on-out: #e9edef;
+  --wa-text-banner: #78350f;
+
+  --wa-border: #202c33;
+  --wa-border-light: #2a3942;
+
+  --wa-accent: #00a884;
+}
+
+[data-theme="light"] {
+  --wa-bg-primary: #ffffff;
+  --wa-bg-secondary: #f0f2f5;
+  --wa-bg-surface: #ffffff;
+  --wa-bg-sidebar: #ffffff;
+  --wa-bg-chat: #eae6df;
+  --wa-bg-message-in: #ffffff;
+  --wa-bg-message-out: #d9fdd3;
+  --wa-bg-message-out-selected: #cef8cb;
+  --wa-bg-header: #f0f2f5;
+  --wa-bg-input: #ffffff;
+  --wa-bg-hover: #f5f6f6;
+  --wa-bg-banner: #f59e0b;
+  --wa-bg-banner-text: #78350f;
+
+  --wa-text-primary: #111b21;
+  --wa-text-secondary: #667781;
+  --wa-text-on-out: #111b21;
+  --wa-text-banner: #78350f;
+
+  --wa-border: #e9edef;
+  --wa-border-light: #e9edef;
+
+  --wa-accent: #00a884;
+}
+
 .App {
   min-height: 100vh;
   display: flex;
+  background-color: var(--wa-bg-primary);
   background-image: url("./background.png");
   background-position: center;
   background-size: cover;
+  color: var(--wa-text-primary);
+}
+
+[data-theme="dark"] .App {
+  background-color: var(--wa-bg-primary);
+  background-image: none;
+}
+
+.theme-transition,
+.theme-transition *,
+.theme-transition *::before,
+.theme-transition *::after {
+  transition: background-color 160ms ease, color 160ms ease, border-color 160ms ease, box-shadow 160ms ease !important;
 }
 
 ::-webkit-scrollbar {

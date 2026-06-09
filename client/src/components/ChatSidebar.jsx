@@ -3,7 +3,6 @@ import {
   VStack,
   HStack,
   Text,
-  Badge,
   Button,
   Icon,
   IconButton,
@@ -22,13 +21,13 @@ import { useState, useRef, useCallback } from "react";
 import ChatList from "./ChatList/ChatList.jsx";
 import BrowseRoomsSection from "./ChatList/BrowseRoomsSection.jsx";
 import RandomChatSection from "./RandomChatSection.jsx";
-import ChatListItem from "./ChatList/ChatListItem.jsx";
+import UserHeader from "./ChatList/UserHeader.jsx";
+import TabNavigation from "./ChatList/TabNavigation.jsx";
 
-const SWIPE_THRESHOLD = 60;
 const PULL_THRESHOLD = 70;
 
 const ChatSidebar = ({ isMobile, isTablet }) => {
-  const { user, leaveRoom, fetchActiveRooms } = ChatState();
+  const { leaveRoom, fetchActiveRooms, setSettingsOpen } = ChatState();
   const { activeSection, setActiveSection, isTabletSidebarOpen, setIsTabletSidebarOpen } =
     useChatNavigation();
   const { setSelectedChat } = ChatState();
@@ -36,14 +35,10 @@ const ChatSidebar = ({ isMobile, isTablet }) => {
 
   const [pullDistance, setPullDistance] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [swipeDeleteId, setSwipeDeleteId] = useState(null);
-  const [swipeOffset, setSwipeOffset] = useState(0);
   const [animatingSlide, setAnimatingSlide] = useState(false);
 
   const scrollRef = useRef(null);
   const touchStartY = useRef(0);
-  const touchStartX = useRef(0);
-  const isSwipingHorizontal = useRef(false);
 
   const isChatView = activeSection === "chatView";
 
@@ -70,10 +65,17 @@ const ChatSidebar = ({ isMobile, isTablet }) => {
     [setSelectedChat, setActiveSection, isMobile]
   );
 
-  // Tablet hamburger toggle
   const toggleTabletSidebar = useCallback(() => {
     setIsTabletSidebarOpen((prev) => !prev);
   }, [setIsTabletSidebarOpen]);
+
+  const handleUserHeaderToggle = useCallback(() => {
+    toggleTabletSidebar();
+  }, [toggleTabletSidebar]);
+
+  const handleOpenSettings = useCallback(() => {
+    setSettingsOpen?.(true);
+  }, [setSettingsOpen]);
 
   // Pull-to-refresh
   const handleScrollTouchStart = useCallback((e) => {
@@ -129,155 +131,6 @@ const ChatSidebar = ({ isMobile, isTablet }) => {
       setPullDistance(0);
     }
   }, [pullDistance, isRefreshing, fetchActiveRooms, toast]);
-
-  // Swipe-to-delete handlers on list items
-  const handleItemTouchStart = useCallback((e, chatId) => {
-    if (!isMobile) return;
-    touchStartX.current = e.touches[0].clientX;
-    isSwipingHorizontal.current = false;
-    setSwipeDeleteId(chatId);
-    setSwipeOffset(0);
-  }, [isMobile]);
-
-  const handleItemTouchMove = useCallback(
-    (e, chatId) => {
-      if (swipeDeleteId !== chatId || !isMobile) return;
-      const dx = e.touches[0].clientX - touchStartX.current;
-      if (!isSwipingHorizontal.current && Math.abs(dx) > 6) {
-        isSwipingHorizontal.current = true;
-      }
-      if (isSwipingHorizontal.current) {
-        const offset = Math.min(0, Math.max(-120, dx));
-        setSwipeOffset(offset);
-      }
-    },
-    [swipeDeleteId, isMobile]
-  );
-
-  const handleItemTouchEnd = useCallback(
-    (e, chatId) => {
-      if (swipeDeleteId !== chatId) return;
-      if (swipeOffset < -60) {
-        setSwipeOffset(-120);
-      } else {
-        setSwipeOffset(0);
-        setTimeout(() => setSwipeDeleteId(null), 300);
-      }
-      isSwipingHorizontal.current = false;
-    },
-    [swipeDeleteId, swipeOffset]
-  );
-
-  const confirmDelete = useCallback(
-    async (chatId, chatName) => {
-      try {
-        await leaveRoom(chatId);
-        if (selectedChat && selectedChat._id === chatId) {
-          setSelectedChat(null);
-          setActiveSection("myChats");
-        }
-        toast({
-          title: "Chat removed",
-          description: `"${chatName || "Chat"}" has been removed`,
-          status: "success",
-          duration: 2000,
-          isClosable: true,
-        });
-      } catch {
-        toast({
-          title: "Failed to remove chat",
-          status: "error",
-          duration: 2000,
-          isClosable: true,
-        });
-      } finally {
-        setSwipeDeleteId(null);
-        setSwipeOffset(0);
-      }
-    },
-    [leaveRoom, selectedChat, setSelectedChat, setActiveSection, toast]
-  );
-
-  // Wrapped ChatListItem with swipe support
-  const SwipeableChatListItem = useCallback(
-    ({ chat, onChatSelect: onChatSelectProp }) => {
-      const isActive = selectedChat && selectedChat._id === chat._id;
-      const isItemSwiped = swipeDeleteId === chat._id;
-      const itemOffset = isItemSwiped ? swipeOffset : 0;
-
-      const handleItemClick = () => {
-        if (Math.abs(itemOffset) < 10) {
-          if (onChatSelectProp) {
-            onChatSelectProp(chat);
-          } else {
-            handleChatSelect(chat);
-          }
-        }
-      };
-
-      return (
-        <Box
-          position="relative"
-          overflow="hidden"
-          onTouchStart={(e) => handleItemTouchStart(e, chat._id)}
-          onTouchMove={(e) => handleItemTouchMove(e, chat._id)}
-          onTouchEnd={(e) => handleItemTouchEnd(e, chat._id)}
-          style={{ touchAction: "pan-y" }}
-        >
-          {/* Swipe delete action background */}
-          {isItemSwiped && (
-            <Box
-              position="absolute"
-              top={0}
-              right={0}
-              h="100%"
-              w="120px"
-              display="flex"
-              alignItems="center"
-              justifyContent="center"
-              bg="red.500"
-              color="white"
-              fontSize="13px"
-              fontWeight="600"
-              zIndex={0}
-              cursor="pointer"
-              onClick={() => confirmDelete(chat._id, chat.chatName)}
-            >
-              Delete
-            </Box>
-          )}
-          {/* Chat item content */}
-          <Box
-            transform={`translateX(${itemOffset}px)`}
-            transition={
-              isItemSwiped && Math.abs(itemOffset) > 4
-                ? "none"
-                : "transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
-            }
-            zIndex={1}
-            position="relative"
-            bg="white"
-          >
-            <ChatListItem
-              chat={chat}
-              isActive={isActive && !isItemSwiped}
-              onClick={handleItemClick}
-            />
-          </Box>
-        </Box>
-      );
-    },
-    [
-      selectedChat,
-      swipeDeleteId,
-      swipeOffset,
-      handleItemTouchStart,
-      handleItemTouchMove,
-      handleItemTouchEnd,
-      handleChatSelect,
-      confirmDelete,
-    ]
-  );
 
   // Determine sidebar panel classes for CSS transitions
   const sidebarPanelClass = isMobile
@@ -351,61 +204,16 @@ const ChatSidebar = ({ isMobile, isTablet }) => {
           }),
         }}
       >
-        {/* Tablet: hamburger header */}
-        {isTablet && (
-          <Box px={3} py={2} borderBottom="1px solid" borderColor="gray.100" bg="white" flexShrink={0}>
-            <HStack justify="space-between" align="center">
-              <HStack spacing={2} align="center">
-                <Icon as={ChatIcon} color="blue.500" fontSize="lg" />
-                <Text fontSize="lg" fontFamily="Work sans" fontWeight="bold">
-                  {isChatView ? "Chats" : "Talk-A-Tive"}
-                </Text>
-              </HStack>
-              <HStack spacing={1}>
-                {!isTabletSidebarOpen && (
-                  <IconButton
-                    aria-label="Open sidebar"
-                    icon={<ChevronLeftIcon />}
-                    size="sm"
-                    variant="ghost"
-                    onClick={toggleTabletSidebar}
-                    minH="36px"
-                    minW="36px"
-                  />
-                )}
-                {isTabletSidebarOpen && (
-                  <IconButton
-                    aria-label="Close sidebar"
-                    icon={<CloseIcon />}
-                    size="sm"
-                    variant="ghost"
-                    onClick={toggleTabletSidebar}
-                    minH="36px"
-                    minW="36px"
-                  />
-                )}
-              </HStack>
-            </HStack>
-          </Box>
-        )}
+        {/* UserHeader with dropdown - all sizes */}
+        <UserHeader
+          onToggleSidebar={handleUserHeaderToggle}
+          isMobile={isMobile}
+          isTablet={isTablet}
+        />
 
-        {/* Mobile header */}
-        {isMobile && !isChatView && (
-          <Box px={4} py={3} borderBottom="1px solid" borderColor="gray.200" bg="white" flexShrink={0}>
-            <HStack justify="space-between" align="center">
-              <HStack spacing={2} align="center">
-                <Icon as={ChatIcon} color="blue.500" fontSize="xl" />
-                <Text fontSize="xl" fontFamily="Work sans" fontWeight="bold">
-                  Talk-A-Tive
-                </Text>
-              </HStack>
-              {user?.anonymousName && (
-                <Badge colorScheme="purple" fontSize="xs" px={2} py={0.5}>
-                  {user.anonymousName}
-                </Badge>
-              )}
-            </HStack>
-          </Box>
+        {/* Tab Navigation - desktop and tablet only */}
+        {!isMobile && (
+          <TabNavigation isMobile={isMobile} isTablet={isTablet} />
         )}
 
         {/* Mobile: back button when in chat view */}
@@ -432,55 +240,13 @@ const ChatSidebar = ({ isMobile, isTablet }) => {
           </Box>
         )}
 
-        {/* Section nav buttons - desktop and tablet only (mobile uses bottom tab bar) */}
-        {!isMobile && (
-          <VStack spacing={1} px={3} py={2} flexShrink={0}>
-            <Button
-              leftIcon={<Icon as={ChatIcon} />}
-              variant={activeSection === "myChats" ? "solid" : "ghost"}
-              colorScheme="blue"
-              justifyContent="flex-start"
-              w="100%"
-              size={isTablet ? "sm" : "md"}
-              onClick={() => handleSectionChange("myChats")}
-              minH="44px"
-            >
-              My Chats
-            </Button>
-            <Button
-              leftIcon={<Icon as={SearchIcon} />}
-              variant={activeSection === "browseRooms" ? "solid" : "ghost"}
-              colorScheme="blue"
-              justifyContent="flex-start"
-              w="100%"
-              size={isTablet ? "sm" : "md"}
-              onClick={() => handleSectionChange("browseRooms")}
-              minH="44px"
-            >
-              Browse Rooms
-            </Button>
-            <Button
-              leftIcon={<Icon as={SettingsIcon} />}
-              variant={activeSection === "randomChat" ? "solid" : "ghost"}
-              colorScheme="purple"
-              justifyContent="flex-start"
-              w="100%"
-              size={isTablet ? "sm" : "md"}
-              onClick={() => handleSectionChange("randomChat")}
-              minH="44px"
-            >
-              Random Chat
-            </Button>
-          </VStack>
-        )}
-
         {/* Scrollable content */}
         <Box
           ref={scrollRef}
           flex="1"
           overflowY="auto"
-          px={{ base: 2, md: 3 }}
-          py={2}
+          px={{ base: 1, md: 2 }}
+          py={1}
           className="chat-sidebar-scroll"
           onTouchStart={handleScrollTouchStart}
           onTouchMove={handleScrollTouchMove}
@@ -518,7 +284,7 @@ const ChatSidebar = ({ isMobile, isTablet }) => {
           {activeSection === "myChats" && (
             <Box>
               {isMobile && !isChatView && (
-                <Box px={2} py={1} mb={1}>
+                <Box px={2} py={1} mb={0.5}>
                   <Text
                     fontSize="xs"
                     color="gray.400"
@@ -532,7 +298,7 @@ const ChatSidebar = ({ isMobile, isTablet }) => {
               )}
               <ChatList
                 onChatSelect={handleChatSelect}
-                renderItem={isMobile ? SwipeableChatListItem : undefined}
+                renderItem={isMobile ? undefined : undefined}
               />
             </Box>
           )}
@@ -551,6 +317,7 @@ const ChatSidebar = ({ isMobile, isTablet }) => {
               mb={2}
               size={isTablet ? "sm" : "md"}
               minH="44px"
+              onClick={handleOpenSettings}
             >
               Settings
             </Button>

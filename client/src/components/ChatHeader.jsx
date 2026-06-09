@@ -18,8 +18,10 @@ import {
 } from "@chakra-ui/react";
 import { ChatState } from "../Context/ChatProvider";
 import { RoomParticipants, RoomTimer } from "./miscellaneous/RoomComponents";
-import { AddIcon, ChatIcon, CloseIcon, RepeatIcon } from "@chakra-ui/icons";
+import { AddIcon, ChatIcon, CloseIcon, InfoIcon, RepeatIcon } from "@chakra-ui/icons";
 import { useState } from "react";
+import ParticipantPanel from "./Advanced/ParticipantPanel";
+import RoomInfoPanel from "./Advanced/RoomInfoPanel";
 
 const isRoomExpired = (room) => {
   if (!room) return false;
@@ -52,6 +54,7 @@ const ChatHeader = ({ onFindNewChat }) => {
   const { selectedChat, leaveRoom, onlineUsers, setSelectedChat } = ChatState();
   const toast = useToast();
   const [isParticipantsOpen, setIsParticipantsOpen] = useState(false);
+  const [isRoomInfoOpen, setIsRoomInfoOpen] = useState(false);
 
   const handleLeaveRoom = async () => {
     if (!selectedChat?._id) return;
@@ -138,6 +141,16 @@ const ChatHeader = ({ onFindNewChat }) => {
           </HStack>
 
           <HStack align="center" spacing={2} className="chat-header-actions">
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-label="Room info"
+              onClick={() => setIsRoomInfoOpen(true)}
+              className="header-action-button"
+            >
+              <InfoIcon />
+            </Button>
+
             {selectedChat.expiresAt && (
               <Box className="room-timer-wrapper">
                 <RoomTimer room={selectedChat} />
@@ -203,6 +216,20 @@ const ChatHeader = ({ onFindNewChat }) => {
           </ModalFooter>
         </ModalContent>
       </Modal>
+
+      <ParticipantPanel
+        isOpen={isParticipantsOpen}
+        onClose={() => setIsParticipantsOpen(false)}
+        roomId={selectedChat._id}
+      />
+
+      {isRoomInfoOpen && (
+        <RoomInfoPanel
+          isOpen={isRoomInfoOpen}
+          onClose={() => setIsRoomInfoOpen(false)}
+          room={selectedChat}
+        />
+      )}
     </>
   );
 };

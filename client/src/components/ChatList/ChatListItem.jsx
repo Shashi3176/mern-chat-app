@@ -4,7 +4,7 @@ import { ChatState } from "../../Context/ChatProvider";
 import { useChatItemHelpers } from "./useChatItemHelpers";
 
 const ChatListItemInner = ({ chat, isActive, onChatSelect }) => {
-  const { user, typingUsers } = ChatState();
+  const { typingUsers } = ChatState();
   const helpers = useChatItemHelpers();
 
   const displayName = chat.chatName || (!chat.isGroupChat && "Random Chat");
@@ -21,8 +21,8 @@ const ChatListItemInner = ({ chat, isActive, onChatSelect }) => {
 
   return (
     <Box
-      py={3}
-      px={4}
+      py={2.5}
+      px={3}
       cursor="pointer"
       bg={isActive ? "blue.50" : "white"}
       borderLeft={isActive ? "4px solid" : "4px solid transparent"}
@@ -43,8 +43,8 @@ const ChatListItemInner = ({ chat, isActive, onChatSelect }) => {
       <HStack spacing={3} align="flex-start">
         <Box position="relative" flexShrink={0}>
           <Box
-            w={12}
-            h={12}
+            w={11}
+            h={11}
             borderRadius="full"
             bg={isActive ? "blue.500" : chat.isGroupChat ? "blue.400" : "gray.300"}
             display="flex"
@@ -74,7 +74,7 @@ const ChatListItemInner = ({ chat, isActive, onChatSelect }) => {
           <HStack justify="space-between" align="center" w="100%">
             <Text
               fontSize="sm"
-              fontWeight={isUnread ? "bold" : "medium"}
+              fontWeight={isUnread ? "700" : "500"}
               color={isUnread ? "gray.900" : "gray.700"}
               noOfLines={1}
             >
@@ -89,7 +89,7 @@ const ChatListItemInner = ({ chat, isActive, onChatSelect }) => {
             <Text
               fontSize="xs"
               color={isTyping ? "blue.500" : isUnread ? "gray.700" : "gray.500"}
-              fontWeight={isTyping ? "medium" : isUnread ? "medium" : "normal"}
+              fontWeight={isTyping ? "600" : isUnread ? "600" : "400"}
               noOfLines={1}
               flex={1}
               lineHeight="tight"

@@ -6,7 +6,7 @@ import { useChatNavigation } from "../Context/ChatNavigationContext";
 import ChatHeader from "./ChatHeader";
 import EmptyState from "./EmptyState";
 import MessageInput from "./MessageInput";
-import MessagesContainer from "./MessagesContainer";
+import MessagesContainerAdvanced from "./Advanced/MessagesContainerAdvanced";
 
 const isRoomExpired = (room) => {
   if (!room) return true;
@@ -243,7 +243,11 @@ const SingleChat = () => {
             <Text color="gray.500">Loading messages</Text>
           </Box>
         ) : (
-          <MessagesContainer messages={messages} roomType={selectedChat.roomType} />
+          <MessagesContainerAdvanced
+            messages={messages}
+            roomType={selectedChat.roomType}
+            loading={loading}
+          />
         )}
       </Box>
 
