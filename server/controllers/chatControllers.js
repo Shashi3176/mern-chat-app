@@ -276,8 +276,7 @@ const markRoomAsRead = asyncHandler(async (req, res) => {
 
   const participant = await RoomParticipant.findOne({ room: roomId, user: userId, isActive: true });
   if (!participant) {
-    res.status(404);
-    throw new Error("Room not found or you are not a participant");
+    return res.json({ success: true, modifiedCount: 0 });
   }
 
   const result = await Message.updateMany(

@@ -59,6 +59,91 @@ const ChatProvider = ({ children }) => {
     } catch {}
   }, [theme]);
 
+  useEffect(() => {
+    const socketInstance = io();
+    console.log("Socket connecting...");
+    
+    socketInstance.on("connect", () => {
+      console.log("Socket connected:", socketInstance.id);
+    });
+
+    socketInstance.on("disconnect", () => {
+      console.log("Socket disconnected");
+    });
+
+    socketInstance.on("connect_error", (err) => {
+      console.error("Socket connection error:", err);
+    });
+
+    setSocket(socketInstance);
+
+    return () => {
+      socketInstance.disconnect();
+      setSocket(null);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!socket || !user) return;
+    socket.emit("setup", user);
+    console.log("Socket setup with user:", user._id);
+  }, [socket, user?._id]);
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleUserTyping = ({ roomId, userId }) => {
+      setTypingUsers((prev) => ({ ...prev, [roomId]: userId }));
+      if (typingTimeoutsRef.current[roomId]) {
+        clearTimeout(typingTimeoutsRef.current[roomId]);
+      }
+      typingTimeoutsRef.current[roomId] = setTimeout(() => {
+        setTypingUsers((prev) => {
+          const next = { ...prev };
+          if (next[roomId] === userId) delete next[roomId];
+          return next;
+        });
+        delete typingTimeoutsRef.current[roomId];
+      }, 3000);
+    };
+
+    const handleUserStopTyping = ({ roomId, userId }) => {
+      setTypingUsers((prev) => {
+        if (prev[roomId] === userId) {
+          const next = { ...prev };
+          delete next[roomId];
+          return next;
+        }
+        return prev;
+      });
+      if (typingTimeoutsRef.current[roomId]) {
+        clearTimeout(typingTimeoutsRef.current[roomId]);
+        delete typingTimeoutsRef.current[roomId];
+      }
+    };
+
+    const handleUserStatus = ({ userId, isOnline }) => {
+      setOnlineUsers((prev) => ({ ...prev, [userId]: isOnline }));
+      setConnectedUsers((prev) => ({ ...prev, [userId]: isOnline }));
+    };
+
+    socket.on("user-typing", handleUserTyping);
+    socket.on("user-stop-typing", handleUserStopTyping);
+    socket.on("user-status", handleUserStatus);
+
+    return () => {
+      socket.off("user-typing", handleUserTyping);
+      socket.off("user-stop-typing", handleUserStopTyping);
+      socket.off("user-status", handleUserStatus);
+    };
+  }, [socket]);
+
+  useEffect(() => {
+    try {
+      if (typeof document !== "undefined") document.documentElement.setAttribute("data-theme", theme);
+    } catch {}
+  }, [theme]);
+
   const toggleTheme = useCallback(() => {
     setTheme((prev) => {
       const next = prev === "light" ? "dark" : "light";
@@ -75,12 +160,11 @@ const ChatProvider = ({ children }) => {
     try {
       localStorage.setItem("talkative-theme", next);
       if (typeof document !== "undefined") document.documentElement.setAttribute("data-theme", next);
-    } catch {}
-  }, []);
-    } catch (error) {
-      console.error("Failed to mark room as read:", error);
+    } 
+    catch (error) {
+      console.error("Failed to update theme:", error);
     }
-  }, [user]);
+  }, []);
 
   const joinRoom = useCallback(
     (roomId) => {
@@ -132,24 +216,39 @@ const ChatProvider = ({ children }) => {
     );
   }, []);
 
-  const toggleTheme = useCallback(() => {
-    setTheme((prev) => {
-      const next = prev === "light" ? "dark" : "light";
-      try {
-        localStorage.setItem("talkative-theme", next);
-        if (typeof document !== "undefined") document.documentElement.setAttribute("data-theme", next);
-      } catch {}
-      return next;
-    });
-  }, []);
-
-  const updateTheme = useCallback((next) => {
-    setTheme(next);
+  const fetchActiveRooms = useCallback(async () => {
+    if (!user) return;
+    setLoadingRooms(true);
     try {
-      localStorage.setItem("talkative-theme", next);
-      if (typeof document !== "undefined") document.documentElement.setAttribute("data-theme", next);
-    } catch {}
-  }, []);
+      const config = {
+        headers: {
+          Authorization: `Bearer ${user.token}`,
+        },
+      };
+      const { data } = await axios.get("/api/chat/my-chats", config);
+      if (Array.isArray(data)) {
+        setMyRooms(data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch rooms:", error);
+    } finally {
+      setLoadingRooms(false);
+    }
+  }, [user]);
+
+  const markRoomAsRead = useCallback(async (roomId) => {
+    if (!user || !roomId) return;
+    try {
+      const config = {
+        headers: {
+          Authorization: `Bearer ${user.token}`,
+        },
+      };
+      await axios.put(`/api/chat/${roomId}/read`, {}, config);
+    } catch (error) {
+      console.error("Failed to mark room as read:", error);
+    }
+  }, [user]);
 
   return (
     <ChatContext.Provider

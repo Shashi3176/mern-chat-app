@@ -5,7 +5,7 @@ import {
   IconButton,
 } from "@chakra-ui/react";
 import { ChatState } from "../../Context/ChatProvider.jsx";
-import { ChevronDownIcon } from "@chakra-ui/icons";
+import { ChevronDownIcon, MoonIcon, DeleteIcon, SunIcon } from "@chakra-ui/icons";
 
 const UserHeader = ({ onToggleSidebar, isMobile, isTablet }) => {
   const { user, theme, toggleTheme } = ChatState();
@@ -62,17 +62,6 @@ const UserHeader = ({ onToggleSidebar, isMobile, isTablet }) => {
               className="header-icon-btn"
             />
           )}
-
-          <IconButton
-            aria-label="Toggle theme"
-            icon={theme === "dark" ? <SunIcon /> : <MoonIcon />}
-            size="sm"
-            variant="ghost"
-            onClick={toggleTheme}
-            minH="36px"
-            minW="36px"
-            className="header-icon-btn"
-          />
 
           <IconButton
             aria-label="Logout"
