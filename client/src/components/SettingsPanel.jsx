@@ -82,7 +82,7 @@ const SettingsPanel = ({ isOpen, onClose }) => {
           title: "Notifications blocked",
           description: "Please allow notifications in your browser settings to enable desktop notifications.",
           status: "warning",
-          duration: 4000,
+          duration: 5000,
           isClosable: true,
         });
         return;
@@ -91,12 +91,12 @@ const SettingsPanel = ({ isOpen, onClose }) => {
     const next = !desktopNotifications;
     setDesktopNotifications(next);
     saveNotificationSettings({ ...getNotificationSettings(), desktopEnabled: next });
-    toast({
-      title: next ? "Desktop notifications enabled" : "Desktop notifications disabled",
-      status: "success",
-      duration: 2000,
-      isClosable: true,
-    });
+      toast({
+        title: next ? "Desktop notifications enabled" : "Desktop notifications disabled",
+        status: "success",
+        duration: 5000,
+        isClosable: true,
+      });
   };
 
   const handleSoundToggle = () => {
@@ -107,11 +107,11 @@ const SettingsPanel = ({ isOpen, onClose }) => {
 
   const handleEmailChange = async () => {
     if (!emailForm.current || !emailForm.new) {
-      toast({ title: "Please fill in all fields", status: "warning", duration: 2000 });
+      toast({ title: "Please fill in all fields", status: "warning", duration: 5000 });
       return;
     }
     if (emailForm.new !== emailForm.confirm) {
-      toast({ title: "Emails do not match", status: "error", duration: 2000 });
+      toast({ title: "Emails do not match", status: "error", duration: 5000 });
       return;
     }
     try {
@@ -127,17 +127,17 @@ const SettingsPanel = ({ isOpen, onClose }) => {
       });
       const data = await res.json();
       if (!res.ok) {
-        toast({ title: data?.message || "Failed to update email", status: "error", duration: 3000 });
+        toast({ title: data?.message || "Failed to update email", status: "error", duration: 5000 });
         return;
       }
       const updatedUser = { ...currentUser, email: emailForm.new };
       localStorage.setItem("userInfo", JSON.stringify(updatedUser));
       setUser(updatedUser);
-      toast({ title: "Email updated successfully", status: "success", duration: 2000 });
+      toast({ title: "Email updated successfully", status: "success", duration: 5000 });
       setIsChangingEmail(false);
       setEmailForm({ current: "", new: "", confirm: "" });
     } catch (err) {
-      toast({ title: "Something went wrong. Please retry.", status: "error", duration: 3000 });
+      toast({ title: "Something went wrong. Please retry.", status: "error", duration: 5000 });
     }
   };
 

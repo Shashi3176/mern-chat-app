@@ -4,6 +4,7 @@ import {
   Text,
   HStack,
   VStack,
+  useToast,
 } from "@chakra-ui/react";
 import { ChatState } from "../Context/ChatProvider.jsx";
 import { useChatNavigation } from "../Context/ChatNavigationContext.jsx";

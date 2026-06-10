@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { Box, Text, VStack, HStack, Badge, Spinner, Avatar, Button, Divider, useToast } from "@chakra-ui/react";
-import { CloseIcon, PersonIcon } from "@chakra-ui/icons";
+import { CloseIcon } from "@chakra-ui/icons";
 import axios from "axios";
 import { ChatState } from "../../Context/ChatProvider";
 
@@ -41,7 +41,7 @@ const ParticipantPanel = ({ isOpen, onClose, roomId }) => {
         title: "Left room",
         description: "You have left the room",
         status: "success",
-        duration: 2000,
+        duration: 5000,
         isClosable: true,
       });
       onClose();
@@ -50,7 +50,7 @@ const ParticipantPanel = ({ isOpen, onClose, roomId }) => {
         title: "Error",
         description: "Failed to leave room",
         status: "error",
-        duration: 2000,
+        duration: 5000,
         isClosable: true,
       });
     }

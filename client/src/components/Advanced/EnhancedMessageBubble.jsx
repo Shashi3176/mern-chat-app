@@ -30,6 +30,8 @@ import {
 } from "@chakra-ui/icons";
 import { MdMoreVert } from "react-icons/md";
 import { useState, useRef, memo, useCallback, useEffect } from "react";
+import EmojiPicker from "emoji-picker-react";
+import data from "@emoji-mart/data";
 import {
   canEditMessage,
   extractFirstUrl,
@@ -48,8 +50,7 @@ const EnhancedMessageBubble = memo(({ message, isOwn, isGroup = false, onEdit, o
   const [loadingLinkPreview, setLoadingLinkPreview] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const firstUrlRef = useRef(extractFirstUrl(message.content));
-  const emojiContainerRef = useRef(null);
-  const pickerInstanceRef = useRef(null);
+  const emojiButtonRef = useRef(null);
 
   const senderName =
     message.sender?.anonymousName?.name ||
@@ -77,60 +78,30 @@ const EnhancedMessageBubble = memo(({ message, isOwn, isGroup = false, onEdit, o
     setLocalContent(message.content);
   }, [message.content]);
 
-  useEffect(() => {
-    if (!showEmojiPicker || !emojiContainerRef.current) return;
+  const handleEmojiSelect = (emoji) => {
+    const native = emoji?.native || "😀";
+    onEmojiReact?.(message, native);
+    setShowEmojiPicker(false);
+  };
 
-    const picker = new Picker({
-      emojiSize: 24,
-      theme: "light",
-      showPreview: false,
-      showSkinTones: false,
-      rowsPerPage: 7,
-      perLine: 8,
-      buttonPosition: "bottom",
-      closeButton: false,
-      zIndex: 1001,
-    });
-
-    picker.on("emoji", (emojiEvent) => {
-      const native = emojiEvent.emoji?.native || "😀";
-      setLocalContent((prev) => prev + native);
-      onEmojiReact?.(message, native);
+  const handleOutsideClick = (e) => {
+    const btn = emojiButtonRef.current;
+    if (btn && !btn.contains(e.target)) {
       setShowEmojiPicker(false);
-    });
-
-    if (emojiContainerRef.current) {
-      emojiContainerRef.current.innerHTML = "";
-      picker.togglePicker(emojiContainerRef.current, emojiContainerRef.current);
-      pickerInstanceRef.current = picker;
+      setIsMenuOpen(false);
     }
+  };
 
-    const handleOutsideClick = (e) => {
-      if (
-        emojiContainerRef.current &&
-        !emojiContainerRef.current.contains(e.target)
-      ) {
-        setShowEmojiPicker(false);
-      }
-    };
-
+  useEffect(() => {
+    if (!showEmojiPicker) return;
     const timer = setTimeout(() => {
       document.addEventListener("click", handleOutsideClick);
     }, 0);
-
     return () => {
       clearTimeout(timer);
       document.removeEventListener("click", handleOutsideClick);
-      if (pickerInstanceRef.current) {
-        try {
-          pickerInstanceRef.current.destroyPicker();
-        } catch (err) {
-          // ignore cleanup errors
-        }
-        pickerInstanceRef.current = null;
-      }
     };
-  }, [showEmojiPicker, message, onEmojiReact]);
+  }, [showEmojiPicker]);
 
   useEffect(() => {
     const url = firstUrlRef.current;
@@ -170,14 +141,14 @@ const EnhancedMessageBubble = memo(({ message, isOwn, isGroup = false, onEdit, o
           title: "Copied",
           description: "Message copied to clipboard",
           status: "success",
-          duration: 2000,
+          duration: 5000,
           isClosable: true,
         });
       } catch (err) {
         toast({
           title: "Failed to copy",
           status: "error",
-          duration: 2000,
+          duration: 5000,
           isClosable: true,
         });
       }
@@ -197,12 +168,12 @@ const EnhancedMessageBubble = memo(({ message, isOwn, isGroup = false, onEdit, o
 
   const handleSaveEdit = useCallback(() => {
     if (!localContent.trim()) {
-      toast({
-        title: "Cannot save empty message",
-        status: "warning",
-        duration: 2000,
-        isClosable: true,
-      });
+        toast({
+          title: "Cannot save empty message",
+          status: "warning",
+          duration: 5000,
+          isClosable: true,
+        });
       return;
     }
     onEdit?.(message, localContent);
@@ -528,26 +499,42 @@ const EnhancedMessageBubble = memo(({ message, isOwn, isGroup = false, onEdit, o
             >
               <Popover
                 isOpen={showEmojiPicker}
-                onClose={() => setShowEmojiPicker(false)}
+                onClose={() => {
+                  setShowEmojiPicker(false);
+                  setIsMenuOpen(false);
+                }}
                 placement={isOwn ? "bottom-start" : "bottom-end"}
                 closeOnBlur={false}
               >
                 <PopoverTrigger>
                   <Box />
                 </PopoverTrigger>
-                <PopoverContent
-                  width="320px"
-                  p={0}
-                  border="none"
-                  boxShadow="0 10px 30px rgba(0,0,0,0.14)"
-                  borderRadius="12px"
-                  overflow="hidden"
-                  zIndex={1001}
+              <PopoverContent
+                width="auto"
+                p={0}
+                border="none"
+                boxShadow="0 10px 30px rgba(0,0,0,0.14)"
+                borderRadius="12px"
+                overflow="hidden"
+                zIndex={1001}
+              >
+                <PopoverArrow bg="transparent" />
+                <PopoverCloseButton display="none" />
+                <Box
+                  sx={{
+                    width: 320,
+                    height: 400,
+                  }}
+                  className="emoji-mount"
                 >
-                  <PopoverArrow bg="transparent" />
-                  <PopoverCloseButton display="none" />
-                  <Box ref={emojiContainerRef} className="emoji-mount" />
-                </PopoverContent>
+                  <EmojiPicker
+                    data={data}
+                    onEmojiClick={handleEmojiSelect}
+                    lazyLoadEmojis
+                    previewConfig={{ showPreview: false }}
+                  />
+                </Box>
+              </PopoverContent>
               </Popover>
 
               <IconButton
@@ -558,6 +545,7 @@ const EnhancedMessageBubble = memo(({ message, isOwn, isGroup = false, onEdit, o
                 rounded="full"
                 minW="28px"
                 h="28px"
+                ref={emojiButtonRef}
                 onClick={(e) => {
                   e.stopPropagation();
                   setShowEmojiPicker((prev) => !prev);

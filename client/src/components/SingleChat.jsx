@@ -8,7 +8,7 @@ import EmptyState from "./EmptyState";
 import MessageInput from "./MessageInput";
 import MessagesContainerAdvanced from "./Advanced/MessagesContainerAdvanced";
 
-const isRoomExpired = (room) => {
+const checkRoomExpired = (room) => {
   if (!room) return true;
   if (room.status && room.status !== "active") return true;
   if (room.expiresAt) return new Date(room.expiresAt).getTime() <= Date.now();
@@ -44,7 +44,7 @@ const SingleChat = () => {
     }
 
     const updateRoomExpiredState = () => {
-      setIsRoomExpired(isRoomExpired(selectedChat));
+      setIsRoomExpired(checkRoomExpired(selectedChat));
     };
 
     updateRoomExpiredState();
@@ -153,6 +153,7 @@ const SingleChat = () => {
       }
 
       const { data } = await axios.post("/api/message", payload, config);
+      setMessages((prev) => [...prev, data]);
       if (socket) {
         socket.emit("new message", data);
       }

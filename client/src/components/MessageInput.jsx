@@ -10,7 +10,8 @@ import {
 } from "@chakra-ui/react";
 import { ArrowForwardIcon } from "@chakra-ui/icons";
 import { useEffect, useRef, useCallback, useState } from "react";
-import Picker from "emoji-button";
+import EmojiPicker from "emoji-picker-react";
+import data from "@emoji-mart/data";
 
 const MessageInput = ({
   onSend,
@@ -25,8 +26,8 @@ const MessageInput = ({
   const [loading, setLoading] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const typingDebounceRef = useRef(null);
+  const emojiButtonRef = useRef(null);
   const emojiContainerRef = useRef(null);
-  const pickerInstanceRef = useRef(null);
 
   const emitTyping = useCallback((emitFn) => {
     if (typingDebounceRef.current) {
@@ -50,66 +51,42 @@ const MessageInput = ({
     };
   }, []);
 
-  useEffect(() => {
-    if (!showEmojiPicker || !emojiContainerRef.current) return;
-
-    const picker = new Picker({
-      emojiSize: 24,
-      theme: "light",
-      showPreview: false,
-      showSkinTones: false,
-      rowsPerPage: 7,
-      perLine: 8,
-      buttonPosition: "bottom",
-      closeButton: false,
-      zIndex: 1001,
-    });
-
-    picker.on("emoji", (emojiEvent) => {
-      const native = emojiEvent.emoji?.native || "😀";
-      if (typeof onChange === "function") {
-        const syntheticEvent = {
-          target: {
-            value: (typeof value === "string" ? value : "") + native,
-          },
-        };
-        onChange(syntheticEvent);
-      }
-      setShowEmojiPicker(false);
-    });
-
-    if (emojiContainerRef.current) {
-      emojiContainerRef.current.innerHTML = "";
-      picker.togglePicker(emojiContainerRef.current, emojiContainerRef.current);
-      pickerInstanceRef.current = picker;
+  const handleEmojiSelect = (emoji) => {
+    const native = emoji?.native || "😀";
+    if (typeof onChange === "function") {
+      const syntheticEvent = {
+        target: {
+          value: (typeof value === "string" ? value : "") + native,
+        },
+      };
+      onChange(syntheticEvent);
     }
+    setShowEmojiPicker(false);
+  };
 
-    const handleOutsideClick = (e) => {
-      if (
-        emojiContainerRef.current &&
-        !emojiContainerRef.current.contains(e.target)
-      ) {
-        setShowEmojiPicker(false);
-      }
-    };
+  const handleOutsideClick = (e) => {
+    const btn = emojiButtonRef.current;
+    const container = emojiContainerRef.current;
+    if (
+      btn &&
+      container &&
+      !btn.contains(e.target) &&
+      !container.contains(e.target)
+    ) {
+      setShowEmojiPicker(false);
+    }
+  };
 
+  useEffect(() => {
+    if (!showEmojiPicker) return;
     const timer = setTimeout(() => {
       document.addEventListener("click", handleOutsideClick);
     }, 0);
-
     return () => {
       clearTimeout(timer);
       document.removeEventListener("click", handleOutsideClick);
-      if (pickerInstanceRef.current) {
-        try {
-          pickerInstanceRef.current.destroyPicker();
-        } catch (err) {
-          // ignore cleanup errors
-        }
-        pickerInstanceRef.current = null;
-      }
     };
-  }, [showEmojiPicker, onChange, value]);
+  }, [showEmojiPicker]);
 
   const handleSend = async (event) => {
     const isKeyboardSend =
@@ -117,7 +94,7 @@ const MessageInput = ({
     const isClickSend = event.type === "click";
 
     if (!isKeyboardSend && !isClickSend) return;
-    if (isDisabled || isExpired || loading || !value?.trim?.()) return;
+    if (isDisabled || isExpired || loading) return;
 
     event.preventDefault();
     setLoading(true);
@@ -129,7 +106,7 @@ const MessageInput = ({
         title: "Error",
         description: "Failed to send message",
         status: "error",
-        duration: 3000,
+        duration: 5000,
         isClosable: true,
       });
     } finally {
@@ -138,7 +115,7 @@ const MessageInput = ({
   };
 
   return (
-    <Box className="message-input-container">
+    <Box className="message-input-container" sx={{ position: "relative" }}>
       {isTyping && !isExpired && (
         <Text fontSize="sm" color="gray.500" className="typing-indicator">
           Partner is typing...
@@ -153,7 +130,6 @@ const MessageInput = ({
             value={typeof value === "string" ? value : ""}
             onChange={(event) => {
               onChange?.(event);
-              emitTyping(onChange);
             }}
             onKeyDown={handleSend}
             flex={1}
@@ -165,6 +141,7 @@ const MessageInput = ({
             size="sm"
             variant="ghost"
             isRound
+            ref={emojiButtonRef}
             onClick={(e) => {
               e.stopPropagation();
               setShowEmojiPicker((prev) => !prev);
@@ -175,8 +152,6 @@ const MessageInput = ({
             icon={loading ? <Spinner size="sm" /> : <ArrowForwardIcon />}
             aria-label="Send message"
             onClick={handleSend}
-            colorScheme="green"
-            variant="solid"
             isRound
             isDisabled={isDisabled || isExpired || loading || !value?.trim?.()}
             className="send-button"
@@ -186,41 +161,36 @@ const MessageInput = ({
 
       {showEmojiPicker && (
         <Box
-          ref={emojiContainerRef}
           sx={{
-            position: "relative",
-            marginTop: 2,
-            minHeight: 360,
-            maxHeight: 400,
-            overflow: "auto",
+            position: "absolute",
+            bottom: "100%",
+            right: 0,
+            mb: 1,
+            zIndex: 100,
+            borderRadius: "12px",
+            overflow: "hidden",
+            boxShadow: "0 10px 30px rgba(0,0,0,0.14)",
+            background: "white",
+            border: "1px solid rgba(0,0,0,0.06)",
           }}
-          className="emoji-picker-container"
-        />
+          className="emoji-picker-wrapper"
+        >
+          <Box
+            sx={{
+              width: 320,
+              height: 380,
+            }}
+            className="emoji-picker-container"
+          >
+            <EmojiPicker
+              data={data}
+              onEmojiClick={handleEmojiSelect}
+              lazyLoadEmojis
+              previewConfig={{ showPreview: false }}
+            />
+          </Box>
+        </Box>
       )}
-
-      <Box>
-        <style>{`
-          .message-input-container {
-            position: relative;
-            z-index: 50;
-          }
-          .emoji-picker-container {
-            position: absolute;
-            bottom: calc(100% + 8px);
-            right: 0;
-            z-index: 50;
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.14);
-            background: white;
-            border: 1px solid rgba(0,0,0,0.06);
-          }
-          .emoji-mount-inner {
-            width: 320px;
-            height: 360px;
-          }
-        `}</style>
-      </Box>
     </Box>
   );
 };

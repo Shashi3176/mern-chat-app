@@ -86,3 +86,23 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #555;
 }
+
+/* ===== BUTTON DESIGN TOKENS ===== */
+:root {
+  --button-size-primary: 40px;
+  --button-size-secondary: 36px;
+  --button-size-icon: 32px;
+  --button-size-small: 28px;
+  --button-size-touch: 44px;
+
+  --button-bg-primary: #38a169;
+  --button-bg-primary-hover: #2f855a;
+  --button-bg-secondary: rgba(0, 0, 0, 0.04);
+  --button-bg-icon: var(--wa-bg-surface);
+
+  --button-shadow-subtle: 0 2px 8px rgba(0, 0, 0, 0.12);
+  --button-shadow-medium: 0 4px 12px rgba(0, 0, 0, 0.15);
+
+  --button-radius-full: 9999px;
+  --button-radius-md: 8px;
+}

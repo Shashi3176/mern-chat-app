@@ -31,6 +31,12 @@ const RoomListItemInner = ({ room, onJoinRoom }) => {
       role="button"
       tabIndex={0}
       onKeyDown={(e) => e.key === "Enter" && onJoinRoom(room)}
+      minH="56px"
+      className="chat-list-item room-list-item"
+      sx={{
+        touchAction: "manipulation",
+        WebkitTapHighlightColor: "transparent",
+      }}
     >
       <HStack spacing={3} align="flex-start">
         <Box position="relative" flexShrink={0}>

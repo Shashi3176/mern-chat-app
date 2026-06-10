@@ -14,24 +14,46 @@ const getInitialTheme = () => {
 };
 
 const ChatProvider = ({ children }) => {
-const [selectedChat, setSelectedChat] = useState();
-const [user, setUser] = useState();
-const [socket, setSocket] = useState(null);
-const [onlineUsers, setOnlineUsers] = useState({});
-const [typingUsers, setTypingUsers] = useState({});
-const [notifications, setNotifications] = useState([]);
-const [myRooms, setMyRooms] = useState([]);
-const [loadingRooms, setLoadingRooms] = useState(false);
-const [connectedUsers, setConnectedUsers] = useState({});
-const [mutedChats, setMutedChats] = useState([]);
-const [pinnedChats, setPinnedChats] = useState([]);
-const [userStatus, setUserStatus] = useState("online");
-const [theme, setTheme] = useState(getInitialTheme);
-const [settingsOpen, setSettingsOpen] = useState(false);
-const [isOffline, setIsOffline] = useState(false);
-const typingTimeoutsRef = useRef({});
-
+  const [selectedChat, setSelectedChat] = useState();
+  const [user, setUser] = useState();
+  const [socket, setSocket] = useState(null);
+  const [onlineUsers, setOnlineUsers] = useState({});
+  const [typingUsers, setTypingUsers] = useState({});
+  const [notifications, setNotifications] = useState([]);
+  const [myRooms, setMyRooms] = useState([]);
+  const [loadingRooms, setLoadingRooms] = useState(false);
+  const [connectedUsers, setConnectedUsers] = useState({});
+  const [mutedChats, setMutedChats] = useState([]);
+  const [pinnedChats, setPinnedChats] = useState([]);
+  const [userStatus, setUserStatus] = useState("online");
+  const [theme, setTheme] = useState(getInitialTheme);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [isOffline, setIsOffline] = useState(false);
+  const typingTimeoutsRef = useRef({});
+  const selectedChatRef = useRef();
+  const userRef = useRef();
   const history = useHistory();
+
+  useEffect(() => {
+    selectedChatRef.current = selectedChat;
+  }, [selectedChat]);
+
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
+
+  useEffect(() => {
+    const userInfo = localStorage.getItem("userInfo");
+    if (!userInfo) {
+      history.push("/");
+      return;
+    }
+    const parsedUser = JSON.parse(userInfo);
+    setUser((prev) => {
+      if (prev && prev._id === parsedUser._id) return prev;
+      return parsedUser;
+    });
+  }, []);
 
   useEffect(() => {
     try {
@@ -59,22 +81,7 @@ const typingTimeoutsRef = useRef({});
   }, []);
 
   useEffect(() => {
-    const userInfo = localStorage.getItem("userInfo");
-    if (!userInfo) {
-      history.push("/");
-      return;
-    }
-    const parsedUser = JSON.parse(userInfo);
-    setUser(parsedUser);
-    const notificationSettings =
-      (typeof window !== "undefined" && (() => {
-        try {
-          const raw = localStorage.getItem("talkative-notification-settings");
-          return raw ? JSON.parse(raw) : null;
-        } catch {
-          return null;
-        }
-      })()) || {};
+    if (!user) return;
 
     const backendUrl = (import.meta.env.VITE_BACKEND_URL || "http://localhost:5000").replace(/\/$/, "");
     const newSocket = io(backendUrl, {
@@ -88,6 +95,15 @@ const typingTimeoutsRef = useRef({});
 
     setSocket(newSocket);
 
+    const getNotificationSettings = () => {
+      try {
+        const raw = localStorage.getItem("talkative-notification-settings");
+        return raw ? JSON.parse(raw) : {};
+      } catch {
+        return {};
+      }
+    };
+
     const setupWithRetry = async (attempt = 1) => {
       if (!newSocket.connected || newSocket.disconnected) {
         if (attempt <= 3) {
@@ -96,8 +112,9 @@ const typingTimeoutsRef = useRef({});
         }
       }
       if (newSocket.connected) {
-        newSocket.emit("setup", parsedUser);
-        if (notificationSettings.desktopNotifications) {
+        newSocket.emit("setup", userRef.current);
+        const currentSettings = getNotificationSettings();
+        if (currentSettings.desktopNotifications) {
           await requestNotificationPermission();
         }
       }
@@ -134,7 +151,7 @@ const typingTimeoutsRef = useRef({});
     newSocket.on("reconnect", () => {
       console.log("Socket reconnected");
       setIsOffline(false);
-      if (parsedUser) newSocket.emit("setup", parsedUser);
+      if (userRef.current) newSocket.emit("setup", userRef.current);
     });
 
     newSocket.on("reconnect_attempt", () => {
@@ -155,23 +172,26 @@ const typingTimeoutsRef = useRef({});
 
     newSocket.on("random-chat-matched", (data) => {
       setNotifications((prev) => [...prev, { id: Date.now() + Math.random(), type: "match", ...data }]);
+      const currentSettings = getNotificationSettings();
       const isActiveInChat =
-        selectedChat && (selectedChat._id === data.roomId || selectedChat?._id === data.roomId);
-      if (!isActiveInChat && notificationSettings.desktopNotifications && notificationSettings.matchNotifications) {
+        selectedChatRef.current && (selectedChatRef.current._id === data.roomId || selectedChatRef.current?._id === data.roomId);
+      if (!isActiveInChat && currentSettings.desktopNotifications && currentSettings.matchNotifications) {
         notifyMatch(data);
       }
     });
 
     newSocket.on("random-chat-partner-left", (data) => {
       setNotifications((prev) => [...prev, { id: Date.now() + Math.random(), type: "partner-left", ...data }]);
-      if (notificationSettings.desktopNotifications) {
+      const currentSettings = getNotificationSettings();
+      if (currentSettings.desktopNotifications) {
         notifyPartnerLeft(data);
       }
     });
 
     newSocket.on("room-expiration-warning", (data) => {
       setNotifications((prev) => [...prev, { id: Date.now() + Math.random(), type: "expiration-warning", ...data }]);
-      if (notificationSettings.desktopNotifications && notificationSettings.roomNotifications) {
+      const currentSettings = getNotificationSettings();
+      if (currentSettings.desktopNotifications && currentSettings.roomNotifications) {
         notifyRoomExpiryWarning(data);
       }
     });
@@ -180,12 +200,13 @@ const typingTimeoutsRef = useRef({});
       setNotifications((prev) => [...prev, { id: Date.now() + Math.random(), type: "room-expired", ...data }]);
       setMyRooms((prev) => {
         const updated = prev.filter((room) => room._id !== data.roomId);
-        if (selectedChat?._id === data.roomId) {
+        if (selectedChatRef.current?._id === data.roomId) {
           setSelectedChat(null);
         }
         return updated;
       });
-      if (notificationSettings.desktopNotifications && notificationSettings.roomNotifications) {
+      const currentSettings = getNotificationSettings();
+      if (currentSettings.desktopNotifications && currentSettings.roomNotifications) {
         notifyRoomExpired(data);
       }
     });
@@ -226,20 +247,23 @@ const typingTimeoutsRef = useRef({});
       };
       setNotifications((prev) => [...prev, messageNotification]);
 
-      const isFromMe = newMessageRecieved.sender?._id === parsedUser?._id;
-      const isInChat = selectedChat && (newMessageRecieved.room === selectedChat._id || newMessageRecieved.chat === selectedChat._id);
+      const currentUser = userRef.current;
+      const isFromMe = newMessageRecieved.sender?._id === currentUser?._id;
+      const isInChat = selectedChatRef.current && (newMessageRecieved.room === selectedChatRef.current._id || newMessageRecieved.chat === selectedChatRef.current._id);
+      const currentSettings = getNotificationSettings();
       const shouldNotify = !isFromMe && !isInChat && document.visibilityState !== "visible";
-      if (shouldNotify && notificationSettings.desktopNotifications && notificationSettings.messageNotifications) {
+      if (shouldNotify && currentSettings.desktopNotifications && currentSettings.messageNotifications) {
         notifyMessage({
           ...newMessageRecieved,
-          recipient: { _id: parsedUser?._id },
-          user: parsedUser,
+          recipient: { _id: currentUser?._id },
+          user: currentUser,
         });
       }
 
       setMyRooms((prevRooms) => {
         const updatedRooms = [...prevRooms];
-        const roomId = newMessageRecieved.chat || newMessageRecieved.room;
+        const roomObject = newMessageRecieved.room || newMessageRecieved.chat;
+        const roomId = roomObject?._id || newMessageRecieved.roomId || newMessageRecieved.chatId;
         const roomIndex = updatedRooms.findIndex((r) => r._id === roomId);
         if (roomIndex >= 0) {
           const room = { ...updatedRooms[roomIndex] };
@@ -251,10 +275,10 @@ const typingTimeoutsRef = useRef({});
         } else {
           updatedRooms.unshift({
             _id: roomId,
-            chatName: newMessageRecieved.room?.roomName || newMessageRecieved.chat?.chatName || "Direct Chat",
+            chatName: roomObject?.roomName || roomObject?.chatName || "Direct Chat",
             isGroupChat: false,
-            roomType: newMessageRecieved.room?.roomType,
-            isAnonymousRoom: !!newMessageRecieved.room,
+            roomType: roomObject?.roomType,
+            isAnonymousRoom: !!roomObject,
             latestMessage: newMessageRecieved,
             lastMessageTime: newMessageRecieved.createdAt || new Date(),
             unreadCount: 1,
@@ -270,9 +294,9 @@ const typingTimeoutsRef = useRef({});
       }
       Object.values(typingTimeoutsRef.current).forEach((id) => clearTimeout(id));
     };
-  }, [history, selectedChat, user]);
+  }, [user]);
 
-  const fetchActiveRooms = async () => {
+  const fetchActiveRooms = useCallback(async () => {
     if (!user) return;
     setLoadingRooms(true);
     try {
@@ -291,13 +315,13 @@ const typingTimeoutsRef = useRef({});
     } finally {
       setLoadingRooms(false);
     }
-  };
+  }, [user]);
 
-  const markRoomAsRead = async (roomId) => {
+  const markRoomAsRead = useCallback(async (roomId) => {
     if (!user) return;
     try {
       const backendUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
-      await fetch(`${backendUrl}/api/chat/${roomId}/read`, {
+      await fetch(`${backendUrl}/api/chat/${encodeURIComponent(String(roomId))}/read`, {
         method: "PUT",
         headers: {
           Authorization: `Bearer ${user.token}`,
@@ -309,7 +333,7 @@ const typingTimeoutsRef = useRef({});
     } catch (error) {
       console.error("Failed to mark room as read:", error);
     }
-  };
+  }, [user]);
 
   const joinRoom = useCallback(
     (roomId) => {

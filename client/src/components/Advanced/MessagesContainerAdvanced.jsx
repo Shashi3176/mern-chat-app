@@ -186,20 +186,7 @@ const MessagesContainerAdvanced = ({ messages, roomType = "", loading = false })
           {showScrollToBottom && (
             <Button
               onClick={() => scrollToBottom(true)}
-              sx={{
-                position: "fixed",
-                bottom: 100,
-                right: 40,
-                zIndex: 40,
-                borderRadius: 999,
-                width: 44,
-                height: 44,
-                minW: "44px",
-                background: "white",
-                boxShadow: "0 2px 10px rgba(0,0,0,0.12)",
-                fontSize: 14,
-                border: "1px solid rgba(0,0,0,0.06)",
-              }}
+              className="scroll-to-bottom enter"
               aria-label="Scroll to bottom"
             >
               ↓

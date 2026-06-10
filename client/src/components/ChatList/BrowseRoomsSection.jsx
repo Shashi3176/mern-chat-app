@@ -111,16 +111,17 @@ const BrowseRoomsSection = () => {
         )}
       </Box>
 
-      <Box p={3} borderTop="1px solid" borderColor="gray.200">
-        <Button
-          leftIcon={<AddIcon />}
-          colorScheme="blue"
-          w="100%"
-          onClick={() => setIsCreateModalOpen(true)}
-        >
-          Create Room
-        </Button>
-      </Box>
+<Box p={3} borderTop="1px solid" borderColor="gray.200">
+         <Button
+           leftIcon={<AddIcon />}
+           colorScheme="blue"
+           w="100%"
+           minH="44px"
+           onClick={() => setIsCreateModalOpen(true)}
+         >
+           Create Room
+         </Button>
+       </Box>
 
       <CreateRoomModal
         isOpen={isCreateModalOpen}

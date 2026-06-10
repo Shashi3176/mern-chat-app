@@ -1,4 +1,4 @@
-import { HStack, Text, Badge, VStack, Button, useColorModeValue } from "@chakra-ui/react";
+import { HStack, Text, Badge, VStack, Button, Box, useColorModeValue } from "@chakra-ui/react";
 import { ChatIcon, SearchIcon, TimeIcon } from "@chakra-ui/icons";
 import { ChatState } from "../../Context/ChatProvider.jsx";
 import { useChatNavigation } from "../../Context/ChatNavigationContext.jsx";

@@ -50,13 +50,13 @@ const RandomChat = () => {
     const interval = setInterval(fetchStatus, 5000);
 
     const handleMatch = (data) => {
-      toast({
-        title: "Match found!",
-        description: data.message,
-        status: "success",
-        duration: 3000,
-        isClosable: true,
-      });
+        toast({
+          title: "Match found!",
+          description: data.message,
+          status: "success",
+          duration: 5000,
+          isClosable: true,
+        });
       setActiveRoomId(data.roomId);
       fetchStatus();
     };
@@ -66,7 +66,7 @@ const RandomChat = () => {
         title: "Partner left",
         description: data.message,
         status: "info",
-        duration: 3000,
+        duration: 5000,
         isClosable: true,
       });
       setActiveRoomId(null);
@@ -182,42 +182,44 @@ const RandomChat = () => {
       </Text>
 
       <VStack spacing={4}>
-        {status === "matched" && activeRoomId && (
-          <>
-            <Badge colorScheme="green" p={2} borderRadius="md">
-              Connected to a random stranger
-            </Badge>
-            <Button
-              leftIcon={<RepeatIcon />}
-              colorScheme="blue"
-              onClick={handleNextChat}
-              isLoading={loading}
-            >
-              Find New Chat
-            </Button>
-          </>
-        )}
+{status === "matched" && activeRoomId && (
+           <>
+             <Badge colorScheme="green" p={2} borderRadius="md">
+               Connected to a random stranger
+             </Badge>
+             <Button
+               leftIcon={<RepeatIcon />}
+               colorScheme="blue"
+               minH="40px"
+               onClick={handleNextChat}
+               isLoading={loading}
+             >
+               Find New Chat
+             </Button>
+           </>
+         )}
 
-        {status === "waiting" && (
-          <>
-            <Spinner size="lg" />
-            <Text>Waiting for a partner...</Text>
-            <Button colorScheme="red" onClick={handleCancel} isLoading={loading}>
-              Cancel
-            </Button>
-          </>
-        )}
+         {status === "waiting" && (
+           <>
+             <Spinner size="lg" />
+             <Text>Waiting for a partner...</Text>
+             <Button colorScheme="red" minH="40px" onClick={handleCancel} isLoading={loading}>
+               Cancel
+             </Button>
+           </>
+         )}
 
-        {status === "available" && (
-          <Button
-            colorScheme="purple"
-            size="lg"
-            onClick={handleRandomChat}
-            isLoading={loading}
-          >
-            Start Random Chat
-          </Button>
-        )}
+{status === "available" && (
+           <Button
+             colorScheme="purple"
+             size="md"
+             minH="44px"
+             onClick={handleRandomChat}
+             isLoading={loading}
+           >
+             Start Random Chat
+           </Button>
+         )}
       </VStack>
     </Box>
   );

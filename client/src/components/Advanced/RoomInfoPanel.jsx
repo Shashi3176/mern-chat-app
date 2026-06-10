@@ -3,6 +3,7 @@ import { InfoIcon } from "@chakra-ui/icons";
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { ChatState } from "../../Context/ChatProvider";
+import { ArrowForwardIcon } from "@chakra-ui/icons";
 
 const RoomInfoPanel = ({ isOpen, onClose, room }) => {
   const { user } = ChatState();
@@ -37,7 +38,7 @@ const RoomInfoPanel = ({ isOpen, onClose, room }) => {
           title: "Link copied",
           description: "Room link copied to clipboard",
           status: "success",
-          duration: 2000,
+          duration: 5000,
           isClosable: true,
         });
       }
@@ -47,7 +48,7 @@ const RoomInfoPanel = ({ isOpen, onClose, room }) => {
           title: "Share failed",
           description: "Could not share room",
           status: "error",
-          duration: 2000,
+          duration: 5000,
           isClosable: true,
         });
       }

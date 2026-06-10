@@ -9,6 +9,7 @@ import {
   Icon,
   useToast,
   Tooltip,
+  Badge
 } from "@chakra-ui/react";
 import { useState, useRef, useCallback, useEffect } from "react";
 import { ChatState } from "../../Context/ChatProvider.jsx";
@@ -46,11 +47,11 @@ const ChatContextMenu = ({ chat, children, onChatSelect }) => {
         title: "Chat left",
         description: `"${chat.chatName || "Chat"}" has been left`,
         status: "success",
-        duration: 2500,
+        duration: 5000,
         isClosable: true,
       });
     } catch {
-      toast({ title: "Failed to leave chat", status: "error", duration: 3000, isClosable: true });
+      toast({ title: "Failed to leave chat", status: "error", duration: 5000, isClosable: true });
     }
   }, [chat, leaveRoom, isSelected, setSelectedChat, setActiveSection, toast]);
 
@@ -59,7 +60,7 @@ const ChatContextMenu = ({ chat, children, onChatSelect }) => {
     toast({
       title: isPinned ? "Chat unpinned" : "Chat pinned",
       status: "success",
-      duration: 1500,
+      duration: 5000,
       isClosable: true,
     });
   }, [chat._id, isPinned, togglePinChat, toast]);
@@ -69,7 +70,7 @@ const ChatContextMenu = ({ chat, children, onChatSelect }) => {
     toast({
       title: isMuted ? "Notifications enabled" : "Notifications muted",
       status: "success",
-      duration: 1500,
+      duration: 5000,
       isClosable: true,
     });
   }, [chat._id, isMuted, toggleMuteChat, toast]);

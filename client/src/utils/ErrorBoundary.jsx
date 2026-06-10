@@ -1,6 +1,7 @@
 import { Component } from "react";
 import { Box, Button, Text } from "@chakra-ui/react";
 
+
 class ErrorBoundary extends Component {
   constructor(props) {
     super(props);

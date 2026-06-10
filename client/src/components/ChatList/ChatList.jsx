@@ -1,4 +1,4 @@
-import { Box, Spinner, Text, Flex, HStack, VStack } from "@chakra-ui/react";
+import { Box, Spinner, Text, Flex, HStack, VStack, Badge } from "@chakra-ui/react";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { ChatState } from "../../Context/ChatProvider";
 import { useChatItemHelpers } from "./useChatItemHelpers";

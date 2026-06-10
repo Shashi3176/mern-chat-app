@@ -42,7 +42,7 @@ const CreateRoomModal = ({ isOpen, onClose, user, onRoomCreated }) => {
         title: "Room created",
         description: "Your room has been created successfully",
         status: "success",
-        duration: 3000,
+        duration: 5000,
         isClosable: true,
       });
 
@@ -87,14 +87,14 @@ const CreateRoomModal = ({ isOpen, onClose, user, onRoomCreated }) => {
             />
           </FormControl>
         </ModalBody>
-        <ModalFooter>
-          <Button variant="ghost" mr={3} onClick={onClose}>
-            Cancel
-          </Button>
-          <Button colorScheme="blue" onClick={handleCreateRoom} isLoading={loading}>
-            Create Room
-          </Button>
-        </ModalFooter>
+<ModalFooter>
+           <Button variant="ghost" mr={3} onClick={onClose} minH="36px">
+             Cancel
+           </Button>
+           <Button colorScheme="blue" onClick={handleCreateRoom} isLoading={loading} minH="36px">
+             Create Room
+           </Button>
+         </ModalFooter>
       </ModalContent>
     </Modal>
   );

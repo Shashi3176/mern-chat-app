@@ -78,7 +78,7 @@ const RandomChatSection = () => {
         title: "Match found!",
         description: data.message,
         status: "success",
-        duration: 3000,
+        duration: 5000,
         isClosable: true,
       });
       try {
@@ -100,7 +100,7 @@ const RandomChatSection = () => {
         title: "Partner left",
         description: data.message,
         status: "info",
-        duration: 3000,
+        duration: 5000,
         isClosable: true,
       });
       if (activeRoomId) {

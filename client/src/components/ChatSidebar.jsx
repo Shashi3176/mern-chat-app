@@ -113,14 +113,14 @@ const ChatSidebar = ({ isMobile, isTablet }) => {
         toast({
           title: "Chat list refreshed",
           status: "success",
-          duration: 1500,
+          duration: 5000,
           isClosable: true,
         });
       } catch {
         toast({
           title: "Refresh failed",
           status: "error",
-          duration: 2000,
+          duration: 5000,
           isClosable: true,
         });
       } finally {

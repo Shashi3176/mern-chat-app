@@ -48,13 +48,13 @@ const UserHeader = ({ onToggleSidebar, isMobile, isTablet }) => {
     try {
       setUserStatusWithSocket?.(next);
     } catch {}
-    toast({
-      title: `Status updated`,
-      description: `You are now ${next}`,
-      status: "success",
-      duration: 2000,
-      isClosable: true,
-    });
+      toast({
+        title: `Status updated`,
+        description: `You are now ${next}`,
+        status: "success",
+        duration: 5000,
+        isClosable: true,
+      });
   };
 
   const handleOpenSettings = () => {
@@ -63,15 +63,15 @@ const UserHeader = ({ onToggleSidebar, isMobile, isTablet }) => {
 
   const handleChangePassword = async () => {
     if (!passwordForm.current || !passwordForm.new) {
-      toast({ title: "Please fill in all fields", status: "warning", duration: 2000 });
+      toast({ title: "Please fill in all fields", status: "warning", duration: 5000 });
       return;
     }
     if (passwordForm.new !== passwordForm.confirm) {
-      toast({ title: "New passwords do not match", status: "error", duration: 2000 });
+      toast({ title: "New passwords do not match", status: "error", duration: 5000 });
       return;
     }
     if (passwordForm.new.length < 6) {
-      toast({ title: "Password must be at least 6 characters", status: "warning", duration: 2000 });
+      toast({ title: "Password must be at least 6 characters", status: "warning", duration: 5000 });
       return;
     }
 
@@ -80,13 +80,13 @@ const UserHeader = ({ onToggleSidebar, isMobile, isTablet }) => {
       const { changePassword } = ChatState();
       const result = await changePassword(localPasswordForm.current, localPasswordForm.new);
       if (result?.success) {
-        toast({ title: result?.message || "Password changed successfully", status: "success", duration: 3000 });
+        toast({ title: result?.message || "Password changed successfully", status: "success", duration: 5000 });
         setLocalPasswordForm({ current: "", new: "", confirm: "" });
       } else {
-        toast({ title: result?.message || "Failed to change password", status: "error", duration: 4000 });
+        toast({ title: result?.message || "Failed to change password", status: "error", duration: 5000 });
       }
     } catch {
-      toast({ title: "Failed to change password", status: "error", duration: 3000 });
+      toast({ title: "Failed to change password", status: "error", duration: 5000 });
     } finally {
       setIsChangingPassword(false);
     }

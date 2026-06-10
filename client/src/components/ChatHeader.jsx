@@ -66,7 +66,7 @@ const ChatHeader = ({ onFindNewChat }) => {
         title: "Error",
         description: "Failed to leave room",
         status: "error",
-        duration: 3000,
+        duration: 5000,
         isClosable: true,
       });
     }
@@ -81,7 +81,7 @@ const ChatHeader = ({ onFindNewChat }) => {
         title: "Error",
         description: "Failed to find new chat",
         status: "error",
-        duration: 3000,
+        duration: 5000,
         isClosable: true,
       });
     }
@@ -140,64 +140,66 @@ const ChatHeader = ({ onFindNewChat }) => {
             </VStack>
           </HStack>
 
-          <HStack align="center" spacing={2} className="chat-header-actions">
-            <Button
-              variant="ghost"
-              size="sm"
-              aria-label="Room info"
-              onClick={() => setIsRoomInfoOpen(true)}
-              className="header-action-button"
-            >
-              <InfoIcon />
-            </Button>
+<HStack align="center" spacing={2} className="chat-header-actions">
+             <Button
+               variant="ghost"
+               size="sm"
+               aria-label="Room info"
+               onClick={() => setIsRoomInfoOpen(true)}
+               className="header-action-button"
+               minH="36px"
+               minW="36px"
+             >
+               <InfoIcon />
+             </Button>
 
-            {selectedChat.expiresAt && (
-              <Box className="room-timer-wrapper">
-                <RoomTimer room={selectedChat} />
-              </Box>
-            )}
+             {selectedChat.expiresAt && (
+               <Box className="room-timer-wrapper">
+                 <RoomTimer room={selectedChat} />
+               </Box>
+             )}
 
-            {isGroup && (
-              <Button
-                variant="ghost"
-                size="sm"
-                leftIcon={<AddIcon />}
-                colorScheme="gray"
-                onClick={() => setIsParticipantsOpen(true)}
-                aria-label="View participants"
-                className="header-action-button"
-              >
-                <Text className="header-action-label">Participants</Text>
-              </Button>
-            )}
+             {isGroup && (
+               <Button
+                 variant="ghost"
+                 size="sm"
+                 leftIcon={<AddIcon />}
+                 colorScheme="gray"
+                 onClick={() => setIsParticipantsOpen(true)}
+                 aria-label="View participants"
+                 className="header-action-button"
+               >
+                 <Text className="header-action-label">Participants</Text>
+               </Button>
+             )}
 
-            <Button
-              variant="ghost"
-              size="sm"
-              leftIcon={<CloseIcon />}
-              colorScheme="red"
-              onClick={handleLeaveRoom}
-              aria-label="Leave room"
-              className="header-action-button"
-            >
-              <Text className="header-action-label">Leave</Text>
-            </Button>
+             <Button
+               variant="ghost"
+               size="sm"
+               leftIcon={<CloseIcon />}
+               colorScheme="red"
+               onClick={handleLeaveRoom}
+               aria-label="Leave room"
+               className="header-action-button"
+             >
+               <Text className="header-action-label">Leave</Text>
+             </Button>
 
-            {isRandomDirect && (
-              <Button
-                variant="ghost"
-                size="sm"
-                leftIcon={<RepeatIcon />}
-                colorScheme="blue"
-                onClick={handleFindNewChat}
-                isDisabled={expired}
-                aria-label="Find new chat"
-                className="header-action-button"
-              >
-                <Text className="header-action-label">New chat</Text>
-              </Button>
-            )}
-          </HStack>
+             {isRandomDirect && (
+               <Button
+                 variant="ghost"
+                 size="sm"
+                 leftIcon={<RepeatIcon />}
+                 colorScheme="blue"
+                 onClick={handleFindNewChat}
+                 isDisabled={expired}
+                 aria-label="Find new chat"
+                 className="header-action-button"
+               >
+                 <Text className="header-action-label">New chat</Text>
+               </Button>
+             )}
+           </HStack>
         </HStack>
       </Box>
 
