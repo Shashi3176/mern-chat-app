@@ -238,7 +238,7 @@ const cancelRandomChat = asyncHandler(async (req, res) => {
     );
 
     await AnonymousRoom.findByIdAndUpdate(roomId, {
-      status: "inactive",
+      status: "expired",
       participantCount: 0,
     });
 
@@ -355,7 +355,7 @@ const handleUserLeftRoom = async (io, roomId, userId) => {
 
     if (otherParticipants.length === 0) {
       await AnonymousRoom.findByIdAndUpdate(roomId, {
-        status: "inactive",
+        status: "expired",
         participantCount: 0,
       });
       userActiveRooms.delete(userId.toString());
@@ -460,7 +460,7 @@ const nextRandomChat = asyncHandler(async (req, res) => {
   );
 
   await AnonymousRoom.findByIdAndUpdate(roomId, {
-    status: "inactive",
+    status: "expired",
     participantCount: 0,
   });
 

@@ -1,4 +1,5 @@
-import { Avatar, Box, HStack, Text } from "@chakra-ui/react";
+import { Avatar, Box, Flex, Text } from "@chakra-ui/react";
+import { formatMessageTimestamp } from "../utils/messageUtils";
 
 const MessageBubble = ({ message, isOwn, isGroup = false }) => {
   const senderName =
@@ -7,19 +8,14 @@ const MessageBubble = ({ message, isOwn, isGroup = false }) => {
     message.senderName ||
     "Anonymous";
 
-  const timestamp = message.createdAt
-    ? new Date(message.createdAt).toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      })
-    : "";
+  const timestamp = formatMessageTimestamp(message.createdAt);
 
   const showSenderName = isGroup && !isOwn;
 
   return (
-    <HStack
+    <Flex
       align="end"
-      spacing={2}
+      gap={2}
       justify={isOwn ? "flex-end" : "flex-start"}
       className={isOwn ? "message-container own" : "message-container other"}
     >
@@ -43,15 +39,23 @@ const MessageBubble = ({ message, isOwn, isGroup = false }) => {
           </Text>
         )}
 
-        <Text className="message-content">{message.content}</Text>
+        <Box className="message-content-wrapper">
+          <Text className="message-content">{message.content}</Text>
+        </Box>
 
         {timestamp && (
-          <Text as="span" className="message-timestamp">
+          <Text
+            as="span"
+            className="message-timestamp"
+            textAlign={isOwn ? "right" : "left"}
+            width="100%"
+            display="block"
+          >
             {timestamp}
           </Text>
         )}
       </Box>
-    </HStack>
+    </Flex>
   );
 };
 

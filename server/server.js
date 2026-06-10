@@ -8,7 +8,7 @@ const roomRoutes = require("./routes/roomRoutes");
 const matchmakingRoutes = require("./routes/matchmakingRoutes");
 const cors = require("cors");
 const { notFound, errorHandler } = require("./middleware/errorMiddleware");
-const { closeExpiredRooms, getRoomOnlineCount } = require("./utils/roomExpirationJob");
+const { closeExpiredRooms, getRoomOnlineCount, startExpirationJob, startPurgeJob } = require("./utils/roomExpirationJob");
 const path = require("path");
 
 dotenv.config();
@@ -67,12 +67,8 @@ const io = require("socket.io")(server, {
 module.exports = io;
 app.set("io", io);
 
-const startExpirationJob = (io) => {
-  closeExpiredRooms(io);
-  setInterval(() => closeExpiredRooms(io), 60000);
-};
-
 startExpirationJob(io);
+startPurgeJob(io);
 
 const {
   registerSocket,

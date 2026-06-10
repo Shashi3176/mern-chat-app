@@ -78,9 +78,62 @@
 
 .message-bubble-own,
 .message-bubble-other {
-  padding: 9px 12px 7px;
+  padding: 9px 12px 6px;
   box-shadow: 0 1px 1px rgba(0, 0, 0, 0.08);
   word-break: break-word;
+}
+
+.message-content-wrapper {
+  display: flex;
+  flex-direction: column;
+}
+
+.message-timestamp {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  color: var(--wa-text-secondary);
+  font-size: 11px;
+  line-height: 1;
+  opacity: 0.85;
+  min-height: 14px;
+}
+
+.message-timestamp:empty {
+  margin-top: 0;
+  min-height: 0;
+}
+
+/* Enhanced bubble timestamp container */
+.message-timestamp-container {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+.message-bubble-own .message-timestamp-container {
+  justify-content: flex-end;
+}
+
+.message-bubble-other .message-timestamp-container {
+  justify-content: flex-start;
+}
+
+[data-theme="dark"] .message-bubble-own .message-timestamp {
+  color: rgba(233, 237, 239, 0.85);
+}
+
+[data-theme="dark"] .message-bubble-other .message-timestamp {
+  color: var(--wa-text-secondary);
+}
+
+.message-bubble-own .message-timestamp {
+  text-align: right;
+}
+
+.message-bubble-other .message-timestamp {
+  text-align: left;
 }
 
 .message-bubble-own {
@@ -758,6 +811,10 @@ button:focus:not(:focus-visible),
     font-size: 13px;
   }
 
+  .message-timestamp {
+    font-size: 10px;
+  }
+
   .message-input {
     font-size: 15px;
     padding: 8px 12px;
@@ -808,5 +865,9 @@ button:focus:not(:focus-visible),
   .message-bubble-own,
   .message-bubble-other {
     max-width: 85%;
+  }
+
+  .message-timestamp {
+    font-size: 10px;
   }
 }

@@ -1,18 +1,13 @@
 import {
   Box,
-  VStack,
   HStack,
   Text,
   Button,
-  Icon,
   IconButton,
   useToast,
 } from "@chakra-ui/react";
 import { ChatState } from "../Context/ChatProvider.jsx";
 import {
-  ChatIcon,
-  SearchIcon,
-  SettingsIcon,
   CloseIcon,
   ChevronLeftIcon,
 } from "@chakra-ui/icons";
@@ -27,7 +22,7 @@ import TabNavigation from "./ChatList/TabNavigation.jsx";
 const PULL_THRESHOLD = 70;
 
 const ChatSidebar = ({ isMobile, isTablet }) => {
-  const { leaveRoom, fetchActiveRooms, setSettingsOpen } = ChatState();
+  const { leaveRoom, fetchActiveRooms } = ChatState();
   const { activeSection, setActiveSection, isTabletSidebarOpen, setIsTabletSidebarOpen } =
     useChatNavigation();
   const { setSelectedChat } = ChatState();
@@ -72,10 +67,6 @@ const ChatSidebar = ({ isMobile, isTablet }) => {
   const handleUserHeaderToggle = useCallback(() => {
     toggleTabletSidebar();
   }, [toggleTabletSidebar]);
-
-  const handleOpenSettings = useCallback(() => {
-    setSettingsOpen?.(true);
-  }, [setSettingsOpen]);
 
   // Pull-to-refresh
   const handleScrollTouchStart = useCallback((e) => {
@@ -308,19 +299,7 @@ const ChatSidebar = ({ isMobile, isTablet }) => {
 
         {/* Footer - desktop and tablet only */}
         {!isMobile && (
-          <Box p={3} borderTop="1px solid" borderColor="gray.200" flexShrink={0}>
-            <Button
-              leftIcon={<Icon as={SettingsIcon} />}
-              variant="ghost"
-              justifyContent="flex-start"
-              w="100%"
-              mb={2}
-              size={isTablet ? "sm" : "md"}
-              minH="44px"
-              onClick={handleOpenSettings}
-            >
-              Settings
-            </Button>
+<Box p={3} borderTop="1px solid" borderColor="gray.200" flexShrink={0}>
             <Button
               variant="ghost"
               colorScheme="red"

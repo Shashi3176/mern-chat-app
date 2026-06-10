@@ -1,6 +1,6 @@
 import {
   Box,
-  HStack,
+  Flex,
   Text,
   IconButton,
   Button,
@@ -10,18 +10,9 @@ import {
   MenuItem,
   useToast,
   Avatar,
-  Tooltip,
-  Badge,
-  Portal,
-  Popover,
-  PopoverTrigger,
-  PopoverContent,
-  PopoverArrow,
-  PopoverCloseButton,
+  HStack,
 } from "@chakra-ui/react";
 import {
-  CheckIcon,
-  CheckCircleIcon,
   CopyIcon,
   EditIcon,
   DeleteIcon,
@@ -30,15 +21,14 @@ import {
 } from "@chakra-ui/icons";
 import { MdMoreVert } from "react-icons/md";
 import { useState, useRef, memo, useCallback, useEffect } from "react";
-import EmojiPicker from "emoji-picker-react";
-import data from "@emoji-mart/data";
 import {
   canEditMessage,
   extractFirstUrl,
+  formatMessageTimestamp,
 } from "../../utils/messageUtils";
 import { ChatState } from "../../Context/ChatProvider";
 
-const EnhancedMessageBubble = memo(({ message, isOwn, isGroup = false, onEdit, onDelete, onEmojiReact }) => {
+const EnhancedMessageBubble = memo(({ message, isOwn, isGroup = false, onEdit, onDelete }) => {
   const { user } = ChatState();
   const toast = useToast();
   const [isHovered, setIsHovered] = useState(false);
@@ -48,9 +38,7 @@ const EnhancedMessageBubble = memo(({ message, isOwn, isGroup = false, onEdit, o
   const [showLinkPreview, setShowLinkPreview] = useState(false);
   const [linkPreviewData, setLinkPreviewData] = useState(null);
   const [loadingLinkPreview, setLoadingLinkPreview] = useState(false);
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const firstUrlRef = useRef(extractFirstUrl(message.content));
-  const emojiButtonRef = useRef(null);
 
   const senderName =
     message.sender?.anonymousName?.name ||
@@ -58,9 +46,7 @@ const EnhancedMessageBubble = memo(({ message, isOwn, isGroup = false, onEdit, o
     message.senderName ||
     "Anonymous";
 
-  const timestamp = message.createdAt
-    ? new Date(message.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-    : "";
+  const timestamp = formatMessageTimestamp(message.createdAt);
 
   const fullTimestamp = message.createdAt
     ? new Date(message.createdAt).toLocaleString([], {
@@ -78,30 +64,6 @@ const EnhancedMessageBubble = memo(({ message, isOwn, isGroup = false, onEdit, o
     setLocalContent(message.content);
   }, [message.content]);
 
-  const handleEmojiSelect = (emoji) => {
-    const native = emoji?.native || "😀";
-    onEmojiReact?.(message, native);
-    setShowEmojiPicker(false);
-  };
-
-  const handleOutsideClick = (e) => {
-    const btn = emojiButtonRef.current;
-    if (btn && !btn.contains(e.target)) {
-      setShowEmojiPicker(false);
-      setIsMenuOpen(false);
-    }
-  };
-
-  useEffect(() => {
-    if (!showEmojiPicker) return;
-    const timer = setTimeout(() => {
-      document.addEventListener("click", handleOutsideClick);
-    }, 0);
-    return () => {
-      clearTimeout(timer);
-      document.removeEventListener("click", handleOutsideClick);
-    };
-  }, [showEmojiPicker]);
 
   useEffect(() => {
     const url = firstUrlRef.current;
@@ -201,15 +163,15 @@ const EnhancedMessageBubble = memo(({ message, isOwn, isGroup = false, onEdit, o
   return (
     <Box
       className={`message-wrapper ${isOwn ? "own" : "other"}`}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => {
-        setIsHovered(false);
-        if (!isMenuOpen) setShowEmojiPicker(false);
-      }}
-      onContextMenu={(e) => {
-        e.preventDefault();
-        setIsHovered(true);
-      }}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => {
+          setIsHovered(false);
+          setIsMenuOpen(false);
+        }}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          setIsHovered(true);
+        }}
     >
       <Box
         className="message-row"
@@ -303,24 +265,6 @@ const EnhancedMessageBubble = memo(({ message, isOwn, isGroup = false, onEdit, o
               </Box>
             ) : (
               <Box>
-                {message.reactions && message.reactions.length > 0 && (
-                  <HStack
-                    spacing={1}
-                    sx={{ flexWrap: "wrap", gap: 4, mb: message.content ? 0.5 : 0 }}
-                  >
-                    {message.reactions.map((r, idx) => (
-                      <Badge
-                        key={idx}
-                        bg="whiteAlpha.200"
-                        color="gray.700"
-                        sx={{ borderRadius: 6, px: 1, py: 0.5, fontSize: 11 }}
-                      >
-                        {r.emoji} {r.count}
-                      </Badge>
-                    ))}
-                  </HStack>
-                )}
-
                 <Text
                   sx={{
                     color: "#111827",
@@ -444,37 +388,22 @@ const EnhancedMessageBubble = memo(({ message, isOwn, isGroup = false, onEdit, o
                   </Box>
                 )}
 
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "flex-end",
-                    gap: 4,
-                    marginTop: 2,
-                  }}
+                  <Flex
+                  mt={1}
+                  align="center"
+                  justify={isOwn ? "flex-end" : "flex-start"}
+                  className="message-timestamp-container"
                 >
                   <Text
                     as="span"
-                    sx={{
-                      fontSize: 11,
-                      lineHeight: 1,
-                      color: isOwn ? "#4f7f43" : "#667085",
-                    }}
+                    fontSize="xs"
+                    lineHeight={1}
                     className="message-timestamp"
                     title={fullTimestamp}
                   >
                     {timestamp}
                   </Text>
-
-                  {isOwn && (
-                    <Tooltip label="Read" placement="top" hasArrow>
-                      <Box sx={{ display: "flex", alignItems: "center", ml: 0.5 }}>
-                        <CheckCircleIcon sx={{ color: "#4f7f43", width: 3.5, height: 3.5 }} />
-                        <CheckIcon sx={{ color: "#4f7f43", width: 3, height: 3, ml: -1 }} />
-                      </Box>
-                    </Tooltip>
-                  )}
-                </Box>
+                </Flex>
               </Box>
             )}
           </Box>
@@ -497,62 +426,6 @@ const EnhancedMessageBubble = memo(({ message, isOwn, isGroup = false, onEdit, o
                 zIndex: 20,
               }}
             >
-              <Popover
-                isOpen={showEmojiPicker}
-                onClose={() => {
-                  setShowEmojiPicker(false);
-                  setIsMenuOpen(false);
-                }}
-                placement={isOwn ? "bottom-start" : "bottom-end"}
-                closeOnBlur={false}
-              >
-                <PopoverTrigger>
-                  <Box />
-                </PopoverTrigger>
-              <PopoverContent
-                width="auto"
-                p={0}
-                border="none"
-                boxShadow="0 10px 30px rgba(0,0,0,0.14)"
-                borderRadius="12px"
-                overflow="hidden"
-                zIndex={1001}
-              >
-                <PopoverArrow bg="transparent" />
-                <PopoverCloseButton display="none" />
-                <Box
-                  sx={{
-                    width: 320,
-                    height: 400,
-                  }}
-                  className="emoji-mount"
-                >
-                  <EmojiPicker
-                    data={data}
-                    onEmojiClick={handleEmojiSelect}
-                    lazyLoadEmojis
-                    previewConfig={{ showPreview: false }}
-                  />
-                </Box>
-              </PopoverContent>
-              </Popover>
-
-              <IconButton
-                aria-label="Emoji"
-                icon={<Text sx={{ fontSize: 16 }}>😊</Text>}
-                size="xs"
-                variant="ghost"
-                rounded="full"
-                minW="28px"
-                h="28px"
-                ref={emojiButtonRef}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowEmojiPicker((prev) => !prev);
-                  setIsMenuOpen(false);
-                }}
-              />
-
               <IconButton
                 aria-label="Actions"
                 icon={

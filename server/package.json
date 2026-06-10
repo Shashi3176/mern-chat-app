@@ -9,6 +9,7 @@
     "build": "npm install --legacy-peer-deps && npm install --legacy-peer-deps --prefix frontend && npm run build --prefix frontend",
     "seed:anonymous-names": "node scripts/seedAnonymousNames.js",
     "migrate:anonymous-rooms": "node scripts/setupAnonymousRoomIndices.js",
+    "migrate:expired-status": "node scripts/migrateExpiredStatus.js",
     "cleanup:inactive-rooms": "node scripts/cleanupInactiveRooms.js",
     "test": "jest",
     "test:watch": "jest --watch",
@@ -35,6 +36,7 @@
     "express-async-handler": "^1.1.4",
     "jsonwebtoken": "^8.5.1",
     "mongoose": "^5.12.9",
+    "node-cron": "^4.2.1",
     "nodemon": "^2.0.7",
     "socket.io": "^4.1.2"
   }

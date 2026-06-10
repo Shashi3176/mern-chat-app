@@ -11,7 +11,7 @@ import { useChatNavigation } from "../Context/ChatNavigationContext.jsx";
 import { useState, useRef, useCallback, useEffect } from "react";
 import SingleChat from "./SingleChat.jsx";
 import EmptyState from "./EmptyState.jsx";
-import { ArrowBackIcon, InfoIcon } from "@chakra-ui/icons";
+import { ArrowBackIcon } from "@chakra-ui/icons";
 
 const SWIPE_BACK_THRESHOLD = 80;
 
@@ -212,19 +212,9 @@ const ChatMain = ({ isMobile, isTablet }) => {
                 </Text>
               )}
             </VStack>
-            {isMobile && selectedChat && (
-              <IconButton
-                aria-label="Chat info"
-                icon={<InfoIcon />}
-                size="sm"
-                variant="ghost"
-                minH="40px"
-                minW="40px"
-              />
-            )}
-          </HStack>
-        </Box>
-      )}
+           </HStack>
+         </Box>
+       )}
 
       {/* Desktop / Tablet: inline back navigation hint */}
       {!isMobile && !selectedChat && (

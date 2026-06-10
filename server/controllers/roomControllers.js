@@ -199,7 +199,7 @@ const leaveRoom = asyncHandler(async (req, res) => {
 
   if (io && actualCount === 0) {
     await AnonymousRoom.findByIdAndUpdate(roomId, {
-      status: "inactive",
+      status: "expired",
       participantCount: 0,
     });
 

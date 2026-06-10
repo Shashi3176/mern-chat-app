@@ -12,7 +12,7 @@ const anonymousRoomSchema = mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["active", "inactive"],
+      enum: ["active", "expired", "inactive"],
       default: "active",
       index: true,
     },
@@ -38,6 +38,10 @@ anonymousRoomSchema.index(
 anonymousRoomSchema.index(
   { status: 1, expiresAt: 1, participantCount: 1 },
   { name: "expiration_cleanup_index" }
+);
+anonymousRoomSchema.index(
+  { status: 1, createdAt: 1 },
+  { name: "purge_deletion_index" }
 );
 
 const AnonymousRoom = mongoose.model("AnonymousRoom", anonymousRoomSchema);

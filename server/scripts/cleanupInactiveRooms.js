@@ -18,7 +18,7 @@ const cleanupOldRooms = async () => {
     
     // Get room IDs to delete
     const roomsToDelete = await AnonymousRoom.find({
-      status: "inactive",
+      status: { $in: ["expired", "inactive"] },
       updatedAt: { $lt: cutoffDate },
     }).select("_id");
     

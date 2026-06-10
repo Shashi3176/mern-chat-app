@@ -5,23 +5,14 @@ import {
   Button,
   HStack,
   Icon,
-  Modal,
-  ModalBody,
-  ModalCloseButton,
-  ModalContent,
-  ModalFooter,
-  ModalHeader,
-  ModalOverlay,
   Text,
-  VStack,
   useToast,
 } from "@chakra-ui/react";
 import { ChatState } from "../Context/ChatProvider";
-import { RoomParticipants, RoomTimer } from "./miscellaneous/RoomComponents";
-import { AddIcon, ChatIcon, CloseIcon, InfoIcon, RepeatIcon } from "@chakra-ui/icons";
+import { RoomTimer } from "./miscellaneous/RoomComponents";
+import { AddIcon, ChatIcon, CloseIcon, RepeatIcon } from "@chakra-ui/icons";
 import { useState } from "react";
 import ParticipantPanel from "./Advanced/ParticipantPanel";
-import RoomInfoPanel from "./Advanced/RoomInfoPanel";
 
 const isRoomExpired = (room) => {
   if (!room) return false;
@@ -43,18 +34,10 @@ const getRoomTitle = (room) => {
   return "Group Room";
 };
 
-const getRoomSubtitle = (room, participantCount) => {
-  if (room?.roomType === "group") return `${participantCount || 0} participants`;
-  if (room?.roomType === "direct" && room.roomName) return "Direct room";
-  if (room?.roomType === "direct") return "Random direct";
-  return "Anonymous room";
-};
-
 const ChatHeader = ({ onFindNewChat }) => {
   const { selectedChat, leaveRoom, onlineUsers, setSelectedChat } = ChatState();
   const toast = useToast();
   const [isParticipantsOpen, setIsParticipantsOpen] = useState(false);
-  const [isRoomInfoOpen, setIsRoomInfoOpen] = useState(false);
 
   const handleLeaveRoom = async () => {
     if (!selectedChat?._id) return;
@@ -115,7 +98,7 @@ const ChatHeader = ({ onFindNewChat }) => {
               className="chat-header-avatar"
               icon={<Icon as={ChatIcon} />}
             />
-            <VStack align="start" spacing={0} minW={0}>
+            <Box minW={0} flex={1}>
               <Text
                 fontWeight="bold"
                 fontSize={{ base: "md", md: "lg" }}
@@ -133,105 +116,66 @@ const ChatHeader = ({ onFindNewChat }) => {
                     {participantCount} participants
                   </Badge>
                 )}
-                <Text fontSize="xs" color="gray.500" noOfLines={1} className="chat-header-subtitle">
-                  {getRoomSubtitle(selectedChat, participantCount)}
-                </Text>
               </HStack>
-            </VStack>
+            </Box>
           </HStack>
 
-<HStack align="center" spacing={2} className="chat-header-actions">
-             <Button
-               variant="ghost"
-               size="sm"
-               aria-label="Room info"
-               onClick={() => setIsRoomInfoOpen(true)}
-               className="header-action-button"
-               minH="36px"
-               minW="36px"
-             >
-               <InfoIcon />
-             </Button>
+          <HStack align="center" spacing={2} className="chat-header-actions">
+            {selectedChat.expiresAt && (
+              <Box className="room-timer-wrapper">
+                <RoomTimer room={selectedChat} />
+              </Box>
+            )}
 
-             {selectedChat.expiresAt && (
-               <Box className="room-timer-wrapper">
-                 <RoomTimer room={selectedChat} />
-               </Box>
-             )}
+            {isGroup && (
+              <Button
+                variant="ghost"
+                size="sm"
+                leftIcon={<AddIcon />}
+                colorScheme="gray"
+                onClick={() => setIsParticipantsOpen(true)}
+                aria-label="View participants"
+                className="header-action-button"
+              >
+                <Text className="header-action-label">Participants</Text>
+              </Button>
+            )}
 
-             {isGroup && (
-               <Button
-                 variant="ghost"
-                 size="sm"
-                 leftIcon={<AddIcon />}
-                 colorScheme="gray"
-                 onClick={() => setIsParticipantsOpen(true)}
-                 aria-label="View participants"
-                 className="header-action-button"
-               >
-                 <Text className="header-action-label">Participants</Text>
-               </Button>
-             )}
+            <Button
+              variant="ghost"
+              size="sm"
+              leftIcon={<CloseIcon />}
+              colorScheme="red"
+              onClick={handleLeaveRoom}
+              aria-label="Leave room"
+              className="header-action-button"
+            >
+              <Text className="header-action-label">Leave</Text>
+            </Button>
 
-             <Button
-               variant="ghost"
-               size="sm"
-               leftIcon={<CloseIcon />}
-               colorScheme="red"
-               onClick={handleLeaveRoom}
-               aria-label="Leave room"
-               className="header-action-button"
-             >
-               <Text className="header-action-label">Leave</Text>
-             </Button>
-
-             {isRandomDirect && (
-               <Button
-                 variant="ghost"
-                 size="sm"
-                 leftIcon={<RepeatIcon />}
-                 colorScheme="blue"
-                 onClick={handleFindNewChat}
-                 isDisabled={expired}
-                 aria-label="Find new chat"
-                 className="header-action-button"
-               >
-                 <Text className="header-action-label">New chat</Text>
-               </Button>
-             )}
-           </HStack>
+            {isRandomDirect && (
+              <Button
+                variant="ghost"
+                size="sm"
+                leftIcon={<RepeatIcon />}
+                colorScheme="blue"
+                onClick={handleFindNewChat}
+                isDisabled={expired}
+                aria-label="Find new chat"
+                className="header-action-button"
+              >
+                <Text className="header-action-label">New chat</Text>
+              </Button>
+            )}
+          </HStack>
         </HStack>
       </Box>
-
-      <Modal isOpen={isParticipantsOpen} onClose={() => setIsParticipantsOpen(false)} size="md">
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>Participants</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            <RoomParticipants roomId={selectedChat._id} />
-          </ModalBody>
-          <ModalFooter>
-            <Button variant="ghost" onClick={() => setIsParticipantsOpen(false)}>
-              Close
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
 
       <ParticipantPanel
         isOpen={isParticipantsOpen}
         onClose={() => setIsParticipantsOpen(false)}
         roomId={selectedChat._id}
       />
-
-      {isRoomInfoOpen && (
-        <RoomInfoPanel
-          isOpen={isRoomInfoOpen}
-          onClose={() => setIsRoomInfoOpen(false)}
-          room={selectedChat}
-        />
-      )}
     </>
   );
 };

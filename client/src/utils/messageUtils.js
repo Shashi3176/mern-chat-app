@@ -108,7 +108,18 @@ export const getRelativeDateLabel = (dateString) => {
 
 export const formatMessageTimestamp = (createdAt) => {
   if (!createdAt) return "";
-  return new Date(createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+  const date = new Date(createdAt);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const msgDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const isToday = msgDate.getTime() === today.getTime();
+
+  if (isToday) {
+    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  }
+
+  return date.toLocaleDateString([], { month: "short", day: "numeric" });
 };
 
 export const formatFullDate = (createdAt) => {
@@ -119,6 +130,11 @@ export const formatFullDate = (createdAt) => {
     hour: "2-digit",
     minute: "2-digit",
   });
+};
+
+export const formatTimeOnly = (createdAt) => {
+  if (!createdAt) return "";
+  return new Date(createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 };
 
 export const canEditMessage = (message, currentUserId) => {

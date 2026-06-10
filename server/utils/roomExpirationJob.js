@@ -1,10 +1,20 @@
 const AnonymousRoom = require("../models/anonymousRoomModel");
 const RoomParticipant = require("../models/roomParticipantModel");
+const Message = require("../models/messageModel");
 const config = require("../config/anonymousRoomConfig");
+const cron = require("node-cron");
 
 const EXPIRATION_CHECK_INTERVAL = 60 * 1000;
+const PURGE_CHECK_INTERVAL_CRON = process.env.PURGE_CHECK_INTERVAL_CRON || "0 */30 * * * *";
 
 const WARNING_TIME_MS = config.getRoomWarningMs();
+const DELETION_BUFFER_HOURS = process.env.DELETION_BUFFER_HOURS ? parseFloat(process.env.DELETION_BUFFER_HOURS) : 0.5;
+
+const getDeletionCutoff = () => {
+  const expirationHours = config.getRoomExpirationHours();
+  const bufferMs = DELETION_BUFFER_HOURS * 60 * 60 * 1000;
+  return new Date(Date.now() - (expirationHours * 60 * 60 * 1000 + bufferMs));
+};
 
 const closeExpiredRooms = async (io = null) => {
   try {
@@ -55,7 +65,7 @@ const closeExpiredRooms = async (io = null) => {
         );
 
         await AnonymousRoom.findByIdAndUpdate(room._id, {
-          status: "inactive",
+          status: "expired",
           participantCount: 0,
         });
 
@@ -149,6 +159,82 @@ const getQueueStats = (queue) => ({
     : 0,
 });
 
+const purgeExpiredRooms = async (io = null) => {
+  try {
+    const cutoff = getDeletionCutoff();
+    const now = new Date();
+
+    const roomsToDelete = await AnonymousRoom.find({
+      status: { $in: ["expired", "inactive"] },
+      createdAt: { $lt: cutoff },
+    }).select("_id");
+
+    const roomIds = roomsToDelete.map(r => r._id);
+
+    if (roomIds.length === 0) {
+      return { deletedRooms: 0, deletedParticipants: 0, deletedMessages: 0 };
+    }
+
+    let deletedParticipants = 0;
+    let deletedMessages = 0;
+
+    if (io) {
+      for (const roomId of roomIds) {
+        try {
+          const participants = await RoomParticipant.find({ room: roomId }).populate("user", "_id");
+          for (const p of participants) {
+            if (p.user && p.user._id) {
+              try {
+                io.to(p.user._id.toString()).emit("room-deleted", {
+                  roomId: roomId.toString(),
+                  message: "Chat room has been deleted",
+                });
+              } catch (emitErr) {
+                console.error(`Failed to notify user ${p.user._id} about room deletion:`, emitErr.message);
+              }
+            }
+          }
+        } catch (notifyErr) {
+          console.error(`Error notifying participants for room ${roomId}:`, notifyErr.message);
+        }
+      }
+    }
+
+    try {
+      const participantResult = await RoomParticipant.deleteMany({ room: { $in: roomIds } });
+      deletedParticipants = participantResult.deletedCount;
+    } catch (err) {
+      console.error("Error deleting participants:", err.message);
+    }
+
+    try {
+      const messageResult = await Message.deleteMany({ room: { $in: roomIds } });
+      deletedMessages = messageResult.deletedCount;
+    } catch (err) {
+      console.error("Error deleting messages:", err.message);
+    }
+
+    try {
+      const roomResult = await AnonymousRoom.deleteMany({ _id: { $in: roomIds } });
+      console.log(`Purged ${roomResult.deletedCount} expired rooms, ${deletedParticipants} participants, ${deletedMessages} messages`);
+      return { deletedRooms: roomResult.deletedCount, deletedParticipants, deletedMessages };
+    } catch (err) {
+      console.error("Error deleting rooms:", err.message);
+      return { deletedRooms: 0, deletedParticipants, deletedMessages };
+    }
+  } catch (error) {
+    console.error("Error during expired rooms purge:", error);
+    return { deletedRooms: 0, deletedParticipants: 0, deletedMessages: 0 };
+  }
+};
+
+const startPurgeJob = (io) => {
+  purgeExpiredRooms(io);
+  const cronJob = cron.schedule(PURGE_CHECK_INTERVAL_CRON, () => purgeExpiredRooms(io));
+  console.log(`Room purge cron job started with schedule: ${PURGE_CHECK_INTERVAL_CRON}`);
+  return cronJob;
+};
+
 module.exports = {
   closeExpiredRooms,
   startExpirationJob,
@@ -157,4 +243,8 @@ module.exports = {
   cleanupStaleQueueEntries,
   getQueueStats,
   STALE_QUEUE_THRESHOLD_MS,
+  purgeExpiredRooms,
+  startPurgeJob,
+  PURGE_CHECK_INTERVAL_CRON,
+  DELETION_BUFFER_HOURS,
 };

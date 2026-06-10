@@ -5,7 +5,6 @@ import { ChatNavigationProvider } from "../Context/ChatNavigationContext.jsx";
 import ChatProvider from "../Context/ChatProvider.jsx";
 import { NotificationCenter } from "./NotificationCenter.jsx";
 import ErrorBoundary from "../utils/ErrorBoundary.jsx";
-import SettingsPanel from "./SettingsPanel.jsx";
 import useKeyBinding from "../utils/useKeyBinding.js";
 import { ChatState } from "../Context/ChatProvider.jsx";
 import "./ChatLayout.css";
@@ -13,7 +12,7 @@ import "./ChatLayout.css";
 const ChatContainer = () => {
   const isMobile = useBreakpointValue({ base: true, md: false });
   const isTablet = useBreakpointValue({ base: false, md: true, lg: false });
-  const { settingsOpen, setSettingsOpen, isOffline } = ChatState();
+  const { isOffline } = ChatState();
 
   useKeyBinding("ctrl+k,command+k", () => {
     const searchInput = document.querySelector('[aria-label*="Search" i], .search-input, input[type="search"]');
@@ -44,7 +43,6 @@ const ChatContainer = () => {
             <ChatMain isMobile={isMobile} isTablet={isTablet} />
           </Box>
           <NotificationCenter />
-          <SettingsPanel isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
         </ChatNavigationProvider>
       </ChatProvider>
     </ErrorBoundary>
