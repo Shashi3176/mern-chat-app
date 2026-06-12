@@ -3,7 +3,36 @@ const Message = require("../models/messageModel");
 const Chat = require("../models/chatModel");
 const RoomParticipant = require("../models/roomParticipantModel");
 const AnonymousRoom = require("../models/anonymousRoomModel");
+const ToxicityLog = require("../models/toxicityLogModel");
 const { isExpired } = require("../utils/roomExpiration");
+const { checkToxicity } = require("../utils/toxicityChecker");
+const { config } = require("../config/toxicity.config");
+
+/**
+ * Logs a blocked toxic message for admin review.
+ * @param {string} userId - User ID
+ * @param {string} roomId - Room ID (optional)
+ * @param {string} chatId - Chat ID (optional)
+ * @param {string} messageContent - The blocked message
+ * @param {string[]} categories - Toxic categories detected
+ * @param {Object} scores - Confidence scores by category
+ * @param {number} confidence - Overall confidence
+ */
+async function logToxicMessage(userId, roomId, chatId, messageContent, categories, scores, confidence) {
+  try {
+    await ToxicityLog.create({
+      userId,
+      roomId: roomId || undefined,
+      chatId: chatId || undefined,
+      messageContent: messageContent.substring(0, 100),
+      detectedCategories: categories,
+      confidenceScores: scores,
+      confidence,
+    });
+  } catch (error) {
+    console.error("[ToxicityChecker] Failed to log toxic message:", error.message);
+  }
+}
 
 //@description     Get all Messages
 //@route           GET /api/Message/:chatId
@@ -101,6 +130,45 @@ const sendMessage = asyncHandler(async (req, res) => {
     }
 
     newMessage.chat = chatId;
+  }
+
+  // Toxicity check for messages longer than 3 characters
+  if (content.trim().length > 3) {
+    try {
+      const result = await checkToxicity(content);
+
+      if (result.isToxic) {
+        await logToxicMessage(
+          req.user._id,
+          roomId || undefined,
+          chatId || undefined,
+          content,
+          result.categories,
+          result.scores,
+          result.confidence
+        );
+
+        return res.status(400).json({
+          success: false,
+          error: "This message violates our community guidelines and cannot be sent.",
+          blocked: true,
+        });
+      }
+    } catch (toxicityError) {
+      console.error("[ToxicityChecker] Error during toxicity check:", toxicityError.message);
+      const isCircuitOpen = toxicityError.isCircuitOpen || false;
+
+      if (config.failMode === "closed" || isCircuitOpen) {
+        const userMessage = toxicityError.userMessage || "Unable to verify message. Please try again.";
+        return res.status(503).json({
+          success: false,
+          error: userMessage,
+          blocked: true,
+          retryable: true,
+        });
+      }
+      console.warn(`[ToxicityChecker] Allow message due to API error (fail mode: open, error: ${toxicityError.message})`);
+    }
   }
 
   try {

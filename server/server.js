@@ -6,6 +6,8 @@ const chatRoutes = require("./routes/chatRoutes");
 const messageRoutes = require("./routes/messageRoutes");
 const roomRoutes = require("./routes/roomRoutes");
 const matchmakingRoutes = require("./routes/matchmakingRoutes");
+const adminRoutes = require("./routes/adminRoutes");
+const toxicityRoutes = require("./routes/toxicityRoutes");
 const cors = require("cors");
 const { notFound, errorHandler } = require("./middleware/errorMiddleware");
 const { closeExpiredRooms, getRoomOnlineCount, startExpirationJob, startPurgeJob } = require("./utils/roomExpirationJob");
@@ -21,12 +23,23 @@ app.use(cors({
 }));
 app.use(express.json()); // to accept json data
 
+// Configuration validation on startup
+try {
+  const { validateConfig } = require('./config/toxicity.config');
+  validateConfig();
+  console.log('[Server] Toxicity configuration validated successfully');
+} catch (error) {
+  console.error('[Server] Toxicity configuration validation failed:', error.message);
+}
+
 // Mount routes - rate limiting via existing protect middleware
 app.use("/api/user", userRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/message", messageRoutes);
 app.use("/api/rooms", roomRoutes);
 app.use("/api/matchmaking", matchmakingRoutes);
+app.use("/api/admin", adminRoutes);
+app.use("/api/health/toxicity", toxicityRoutes);
 
 // --------------------------deployment------------------------------
 

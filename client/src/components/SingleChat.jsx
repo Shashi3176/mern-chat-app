@@ -20,6 +20,8 @@ const SingleChat = () => {
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [isRoomExpired, setIsRoomExpired] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const [consecutiveBlocks, setConsecutiveBlocks] = useState(0);
   const typingTimeoutRef = useRef(null);
   const toast = useToast();
 
@@ -136,6 +138,7 @@ const SingleChat = () => {
     if (!newMessage.trim() || !selectedChat || isRoomExpired) return;
 
     sendStopTyping(selectedChat._id);
+    setIsSending(true);
 
     try {
       const config = {
@@ -152,21 +155,91 @@ const SingleChat = () => {
         payload.chatId = selectedChat._id;
       }
 
-      const { data } = await axios.post("/api/message", payload, config);
-      setMessages((prev) => [...prev, data]);
+      const response = await axios.post("/api/message", payload, config);
+      
+      if (response.data?.blocked) {
+        const newCount = consecutiveBlocks + 1;
+        setConsecutiveBlocks(newCount);
+        
+        if (newCount >= 3) {
+          toast({
+            title: "Multiple Messages Blocked",
+            description: "Multiple messages have been blocked. Please review our community guidelines.",
+            status: "warning",
+            duration: 8000,
+            isClosable: true,
+            position: "top",
+          });
+        } else {
+          toast({
+            title: "Message Not Sent",
+            description: "Your message couldn't be sent because it may violate our community guidelines. Please be respectful.",
+            status: "warning",
+            duration: 5000,
+            isClosable: true,
+            position: "top",
+          });
+        }
+        setIsSending(false);
+        return false;
+      }
+      
+      setConsecutiveBlocks(0);
+      setMessages((prev) => [...prev, response.data]);
       if (socket) {
-        socket.emit("new message", data);
+        socket.emit("new message", response.data);
       }
       setNewMessage("");
+      setIsSending(false);
+      return true;
     } catch (error) {
-      toast({
-        title: "Error Occured!",
-        description: "Failed to send the Message",
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-        position: "bottom",
-      });
+      const isBlocked = error.response?.data?.blocked;
+      const isApiError = error.response?.status === 503;
+      
+      if (isBlocked) {
+        const newCount = consecutiveBlocks + 1;
+        setConsecutiveBlocks(newCount);
+        
+        if (newCount >= 3) {
+          toast({
+            title: "Multiple Messages Blocked",
+            description: "Multiple messages have been blocked. Please review our community guidelines.",
+            status: "warning",
+            duration: 8000,
+            isClosable: true,
+            position: "top",
+          });
+        } else {
+          toast({
+            title: "Message Not Sent",
+            description: "Your message couldn't be sent because it may violate our community guidelines. Please be respectful.",
+            status: "warning",
+            duration: 5000,
+            isClosable: true,
+            position: "top",
+          });
+        }
+      } else if (isApiError) {
+        toast({
+          title: "Unable to Send",
+          description: "Unable to verify message. Please try again.",
+          status: "warning",
+          duration: 5000,
+          isClosable: true,
+          position: "top",
+        });
+      } else {
+        toast({
+          title: "Error Occured!",
+          description: "Failed to send the Message",
+          status: "error",
+          duration: 5000,
+          isClosable: true,
+          position: "bottom",
+        });
+      }
+      setIsSending(false);
+      return false;
     }
   };
 
@@ -261,6 +334,7 @@ const SingleChat = () => {
           isExpired={isRoomExpired}
           isTyping={currentChatTyping}
           placeholder="Type a message..."
+          isSending={isSending}
         />
       </Box>
     </VStack>

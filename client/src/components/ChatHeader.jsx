@@ -110,12 +110,7 @@ const ChatHeader = ({ onFindNewChat }) => {
               <HStack spacing={2} minW={0}>
                 <Badge colorScheme={roomType === "Group" ? "teal" : "purple"} className="chat-header-type">
                   {roomType}
-                </Badge>
-                {isGroup && (
-                  <Badge colorScheme="gray" className="chat-header-participants">
-                    {participantCount} participants
-                  </Badge>
-                )}
+                </Badge>                
               </HStack>
             </Box>
           </HStack>

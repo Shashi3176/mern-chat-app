@@ -10,16 +10,20 @@
     "seed:anonymous-names": "node scripts/seedAnonymousNames.js",
     "migrate:anonymous-rooms": "node scripts/setupAnonymousRoomIndices.js",
     "migrate:expired-status": "node scripts/migrateExpiredStatus.js",
+    "migrate:toxicity-logs": "node scripts/migrateToxicityLogs.js",
     "cleanup:inactive-rooms": "node scripts/cleanupInactiveRooms.js",
     "test": "jest",
     "test:watch": "jest --watch",
+    "benchmark:toxicity": "node scripts/benchmarkToxicity.js",
     "lint": "node --check server.js"
   },
   "jest": {
     "testEnvironment": "node",
     "testMatch": [
       "**/*.test.js"
-    ]
+    ],
+    "clearMocks": true,
+    "restoreMocks": true
   },
   "keywords": [
     "mern",
@@ -28,6 +32,7 @@
   "author": "Piyush Agarwal",
   "license": "ISC",
   "dependencies": {
+    "axios": "^1.17.0",
     "bcryptjs": "^2.4.3",
     "colors": "^1.4.0",
     "cors": "^2.8.6",
@@ -36,8 +41,13 @@
     "express-async-handler": "^1.1.4",
     "jsonwebtoken": "^8.5.1",
     "mongoose": "^5.12.9",
+    "node-cache": "^5.1.2",
     "node-cron": "^4.2.1",
     "nodemon": "^2.0.7",
     "socket.io": "^4.1.2"
+  },
+  "devDependencies": {
+    "jest": "^30.2.0",
+    "supertest": "^7.1.4"
   }
 }

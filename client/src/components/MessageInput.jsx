@@ -14,14 +14,15 @@ import EmojiPicker from "emoji-picker-react";
 import data from "@emoji-mart/data";
 
 const MessageInput = ({
-  onSend,
-  onChange,
-  value,
-  isDisabled = false,
-  isExpired = false,
-  isTyping = false,
-  placeholder = "Type a message...",
-}) => {
+   onSend,
+   onChange,
+   value,
+   isDisabled = false,
+   isExpired = false,
+   isTyping = false,
+   placeholder = "Type a message...",
+   isSending = false,
+ }) => {
   const toast = useToast();
   const [loading, setLoading] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -94,21 +95,17 @@ const MessageInput = ({
     const isClickSend = event.type === "click";
 
     if (!isKeyboardSend && !isClickSend) return;
-    if (isDisabled || isExpired || loading) return;
+    if (isDisabled || isExpired || loading || isSending) return;
 
     event.preventDefault();
     setLoading(true);
 
     try {
-      await onSend();
+      const result = await onSend();
+      if (result === false) {
+        // Message was blocked or failed - keep input and loading will be reset
+      }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to send message",
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
     } finally {
       setLoading(false);
     }
@@ -149,11 +146,11 @@ const MessageInput = ({
             className="emoji-button"
           />
           <IconButton
-            icon={loading ? <Spinner size="sm" /> : <ArrowForwardIcon />}
+            icon={(loading || isSending) ? <Spinner size="sm" /> : <ArrowForwardIcon />}
             aria-label="Send message"
             onClick={handleSend}
             isRound
-            isDisabled={isDisabled || isExpired || loading || !value?.trim?.()}
+            isDisabled={isDisabled || isExpired || loading || isSending || !value?.trim?.()}
             className="send-button"
           />
         </HStack>
